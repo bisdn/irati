@@ -119,7 +119,7 @@ public:
 /// tasks to different subencoders. A different encoder is registered
 /// by each type of object. The encoder also implements static helper functions
 /// to encode/decode sub-objects that are shared between two or more classes.
-class Encoder: public rina::IEncoder {
+class Encoder: public rina::IMasterEncoder {
 public:
 	~Encoder();
 	/// Set the class that serializes/unserializes an object class
@@ -261,6 +261,13 @@ public:
 
 /// Encoder of Watchdog
 class WatchdogEncoder: public rina::EncoderInterface {
+public:
+	const rina::SerializedObject* encode(const void* object);
+	void* decode(const rina::ObjectValueInterface * object_value) const;
+};
+
+/// Encoder of the AData object
+class ADataObjectEncoder: public rina::EncoderInterface {
 public:
 	const rina::SerializedObject* encode(const void* object);
 	void* decode(const rina::ObjectValueInterface * object_value) const;

@@ -30,9 +30,6 @@
 
 namespace rina {
 
-/* Timed wait constants */
-#define CONCURRENCY_1S_TO_NS 1000000000
-
 /* CLASS CONCURRENT EXCEPTION */
 const std::string ConcurrentException::error_initialize_thread_attributes =
 		"Cannot initialize thread attribues";
@@ -353,7 +350,6 @@ bool Thread::operator!=(const Thread &other) const {
 /* CLASS LOCKABLE*/
 Lockable::Lockable() {
 	if (pthread_mutexattr_init(&mutex_attr_)) {
-		LOG_CRIT("%s", ConcurrentException::error_initialize_mutex_attributes.c_str());
 		throw ConcurrentException(
 				ConcurrentException::error_initialize_mutex_attributes);
 	}
@@ -361,28 +357,22 @@ Lockable::Lockable() {
 #ifdef _DEBUG
 	if (pthread_mutexattr_settype(&mutex_attr_,
 					PTHREAD_MUTEX_ERRORCHECK)) {
-		LOG_CRIT("%s", ConcurrentException::error_set_mutex_attributes.c_str());
 		throw ConcurrentException(ConcurrentException::error_set_mutex_attributes);
 	}
 #else
 	if (pthread_mutexattr_settype(&mutex_attr_, PTHREAD_MUTEX_NORMAL)) {
-		LOG_CRIT("%s", ConcurrentException::error_set_mutex_attributes.c_str());
 		throw ConcurrentException(
 				ConcurrentException::error_set_mutex_attributes);
 	}
 #endif
 
 	if (pthread_mutex_init(&mutex_, &mutex_attr_)) {
-		LOG_CRIT("%s", ConcurrentException::error_initialize_mutex.c_str());
 		throw ConcurrentException(ConcurrentException::error_initialize_mutex);
 	}
 	if (pthread_mutexattr_destroy(&mutex_attr_)) {
-		LOG_CRIT("%s", ConcurrentException::error_destroy_mutex_attributes.c_str());
 		throw ConcurrentException(
 				ConcurrentException::error_destroy_mutex_attributes);
 	}
-
-	LOG_DBG("Lockable created successfully");
 }
 
 Lockable::~Lockable() throw () {
@@ -584,18 +574,8 @@ void ConditionVariable::doWait(){
 
 void ConditionVariable::timedwait(long seconds, long nanoseconds){
 	timespec waitTime;
-
-	//Prepare timespec struct
-	clock_gettime(CLOCK_REALTIME, &waitTime);
-	waitTime.tv_nsec += nanoseconds;
-
-	//Make sure it does not overflow
-	while(waitTime.tv_nsec >= CONCURRENCY_1S_TO_NS){
-		waitTime.tv_sec++;
-		waitTime.tv_nsec -= CONCURRENCY_1S_TO_NS;
-	}
-	waitTime.tv_sec += seconds;
-
+	waitTime.tv_sec = time(0) + seconds;
+	waitTime.tv_nsec = nanoseconds;
 	int response = pthread_cond_timedwait(&cond_, getMutex(), &waitTime);
 	if (response == 0){
 		return;

@@ -46,8 +46,7 @@ const std::string EncoderConstants::ENROLLMENT = "enrollment";
 const std::string EncoderConstants::FLOWS = "flows";
 const std::string EncoderConstants::FLOW_ALLOCATOR = "flowallocator";
 const std::string EncoderConstants::IPC = "ipc";
-const std::string EncoderConstants::DIFMANAGEMENT = "dif management";
-const std::string EncoderConstants::DAFMANAGEMENT = "daf management";
+const std::string EncoderConstants::MANAGEMENT = "management";
 const std::string EncoderConstants::NEIGHBORS = "neighbors";
 const std::string EncoderConstants::NAMING = "naming";
 const std::string EncoderConstants::NMINUSONEFLOWMANAGER = "nminusoneflowmanager";
@@ -59,48 +58,13 @@ const std::string EncoderConstants::RESOURCE_ALLOCATION = "resourceallocation";
 const std::string EncoderConstants::ROOT = "root";
 const std::string EncoderConstants::SEPARATOR = "/";
 const std::string EncoderConstants::SYNONYMS = "synonyms";
-const std::string EncoderConstants::WHATEVERCAST_NAMES ="whatevercast name";
+const std::string EncoderConstants::WHATEVERCAST_NAMES = "whatevercastnames";
 const std::string EncoderConstants::ROUTING = "routing";
 const std::string EncoderConstants::FLOWSTATEOBJECTGROUP = "flowstateobjectgroup";
 const std::string EncoderConstants::LINKSTATE = "linkstate";
 const std::string EncoderConstants::WATCHDOG = "watchdog";
-
-const std::string EncoderConstants::DAF_RIB_OBJECT_CLASS = "daf";
-const std::string EncoderConstants::DAF_RIB_OBJECT_NAME = SEPARATOR + DAF;
-const std::string EncoderConstants::DIF_RIB_OBJECT_CLASS = "dif";
-const std::string EncoderConstants::DIF_RIB_OBJECT_NAME= SEPARATOR + DIF ;
-const std::string EncoderConstants::DAF_MANAGEMENT_RIB_OBJECT_CLASS = "daf management";
-const std::string EncoderConstants::DAF_MANAGEMENT_RIB_OBJECT_NAME = SEPARATOR + DAF +
-    SEPARATOR + DAFMANAGEMENT;
-const std::string EncoderConstants::DIF_MANAGEMENT_RIB_OBJECT_CLASS = "dif management";
-const std::string EncoderConstants::DIF_MANAGEMENT_RIB_OBJECT_NAME = SEPARATOR + DIF +
-    SEPARATOR + DIFMANAGEMENT;
-const std::string EncoderConstants::RESOURCE_ALLOCATION_RIB_OBJECT_CLASS =  "reource allocation";
-const std::string EncoderConstants::RESOURCE_ALLOCATION_RIB_OBJECT_NAME = SEPARATOR + DIF +
-    SEPARATOR + RESOURCE_ALLOCATION;
-const std::string EncoderConstants::NMINUSONEFLOWMANAGER_RIB_OBJECT_CLASS = "n minus one flowmanager";
-const std::string EncoderConstants::NMINUSONEFLOWMANAGER_RIB_OBJECT_NAME = SEPARATOR + DIF +
-    SEPARATOR + RESOURCE_ALLOCATION + SEPARATOR + NMINUSONEFLOWMANAGER;
-const std::string EncoderConstants::NAMING_RIB_OBJECT_CLASS = "naming";
-const std::string EncoderConstants::NAMING_RIB_OBJECT_NAME = SEPARATOR + DAF +
-    SEPARATOR + DAFMANAGEMENT + SEPARATOR + NAMING;
-const std::string EncoderConstants::FLOW_ALLOCATOR_RIB_OBJECT_CLASS = "flow allocator";
-const std::string EncoderConstants::FLOW_ALLOCATOR_RIB_OBJECT_NAME = SEPARATOR + DIF + SEPARATOR
-    + FLOW_ALLOCATOR;
-const std::string EncoderConstants::LINKSTATE_RIB_OBJECT_CLASS = "linkstate";
-const std::string EncoderConstants::LINKSTATE_RIB_OBJECT_NAME = SEPARATOR +
-    DIF + SEPARATOR + RESOURCE_ALLOCATION + SEPARATOR + PDU_FORWARDING_TABLE + SEPARATOR
-    + LINKSTATE;
-const std::string EncoderConstants::IPC_RIB_OBJECT_CLASS = "ipc";
-const std::string EncoderConstants::IPC_RIB_OBJECT_NAME = SEPARATOR + DIF +
-    SEPARATOR + IPC;
-const std::string EncoderConstants::DATA_TRANSFER_RIB_OBJECT_CLASS = "data transfer";
-const std::string EncoderConstants::DATA_TRANSFER_RIB_OBJECT_NAME = SEPARATOR + DIF +
-    SEPARATOR + IPC + SEPARATOR + DATA_TRANSFER;
-
-
 const std::string EncoderConstants::OPERATIONAL_STATUS_RIB_OBJECT_NAME = SEPARATOR + DAF +
-		SEPARATOR + DAFMANAGEMENT + SEPARATOR + OPERATIONAL_STATUS;
+		SEPARATOR + MANAGEMENT + SEPARATOR + OPERATIONAL_STATUS;
 const std::string EncoderConstants::OPERATIONAL_STATUS_RIB_OBJECT_CLASS = "operationstatus";
 const std::string EncoderConstants::PDU_FORWARDING_TABLE_RIB_OBJECT_CLASS = "pdu forwarding table";
 const std::string EncoderConstants::PDU_FORWARDING_TABLE_RIB_OBJECT_NAME = SEPARATOR + DIF +
@@ -113,44 +77,45 @@ const std::string EncoderConstants::N_MINUS_ONE_FLOW_SET_RIB_OBJECT_CLASS = "nmi
 const std::string EncoderConstants::N_MINUS_ONE_FLOW_RIB_OBJECT_CLASS = "nminusone flow";
 const std::string EncoderConstants::N_MINUS_ONE_FLOW_SET_RIB_OBJECT_NAME = SEPARATOR + DIF +
 		SEPARATOR + RESOURCE_ALLOCATION + SEPARATOR + NMINUSONEFLOWMANAGER + SEPARATOR + NMINUSEONEFLOWS;
+const std::string EncoderConstants::WHATEVERCAST_NAME_SET_RIB_OBJECT_NAME = SEPARATOR + DAF +
+		SEPARATOR + MANAGEMENT + SEPARATOR + NAMING + SEPARATOR + WHATEVERCAST_NAMES;
+const std::string EncoderConstants::WHATEVERCAST_NAME_SET_RIB_OBJECT_CLASS = "whatname set";
+const std::string EncoderConstants::WHATEVERCAST_NAME_RIB_OBJECT_CLASS = "whatname";
 const std::string EncoderConstants::DIF_NAME_WHATEVERCAST_RULE = "any";
 const std::string EncoderConstants::DFT_ENTRY_SET_RIB_OBJECT_NAME = SEPARATOR +
-		DIF + SEPARATOR + DIFMANAGEMENT  + SEPARATOR + DIRECTORY_FORWARDING_TABLE_ENTRIES;
+		DIF + SEPARATOR + MANAGEMENT + SEPARATOR + FLOW_ALLOCATOR + SEPARATOR +
+		DIRECTORY_FORWARDING_TABLE_ENTRIES;
 const std::string EncoderConstants::DFT_ENTRY_SET_RIB_OBJECT_CLASS = "directoryforwardingtableentry set";
 const std::string EncoderConstants::DFT_ENTRY_RIB_OBJECT_CLASS = "directoryforwardingtableentry";
 const std::string EncoderConstants::FLOW_SET_RIB_OBJECT_NAME = SEPARATOR + DIF + SEPARATOR +
-    FLOW_ALLOCATOR + SEPARATOR + FLOWS;
+	    RESOURCE_ALLOCATION + SEPARATOR + FLOW_ALLOCATOR + SEPARATOR + FLOWS;
 const std::string EncoderConstants::FLOW_SET_RIB_OBJECT_CLASS = "flow set";
 const std::string EncoderConstants::FLOW_RIB_OBJECT_CLASS = "flow";
-const std::string EncoderConstants::QOS_CUBE_SET_RIB_OBJECT_NAME = SEPARATOR + DIF + SEPARATOR + RESOURCE_ALLOCATION
-    + SEPARATOR + QOS_CUBES;
+const std::string EncoderConstants::QOS_CUBE_SET_RIB_OBJECT_NAME = SEPARATOR + DIF + SEPARATOR + MANAGEMENT +
+		SEPARATOR + FLOW_ALLOCATOR + SEPARATOR + QOS_CUBES;
 const std::string EncoderConstants::QOS_CUBE_SET_RIB_OBJECT_CLASS = "qoscube set";
 const std::string EncoderConstants::QOS_CUBE_RIB_OBJECT_CLASS = "qoscube";
 const std::string EncoderConstants::ENROLLMENT_INFO_OBJECT_NAME = SEPARATOR + DAF +
-			SEPARATOR + DAFMANAGEMENT + SEPARATOR + ENROLLMENT;
+			SEPARATOR + MANAGEMENT + SEPARATOR + ENROLLMENT;
 const std::string EncoderConstants::ENROLLMENT_INFO_OBJECT_CLASS = "enrollment information";
 const std::string EncoderConstants::FLOW_STATE_OBJECT_RIB_OBJECT_CLASS = "flowstateobject";
 const std::string EncoderConstants::FLOW_STATE_OBJECT_GROUP_RIB_OBJECT_CLASS = "flowstateobject set";
 const std::string EncoderConstants::FLOW_STATE_OBJECT_GROUP_RIB_OBJECT_NAME = SEPARATOR +
-		DIF + SEPARATOR + RESOURCE_ALLOCATION + SEPARATOR + PDU_FORWARDING_TABLE + SEPARATOR
+		DIF + SEPARATOR + MANAGEMENT + SEPARATOR + PDU_FORWARDING_TABLE + SEPARATOR
 		+ LINKSTATE + SEPARATOR + FLOWSTATEOBJECTGROUP;
-const std::string EncoderConstants::WATCHDOG_RIB_OBJECT_NAME = SEPARATOR + DIF + SEPARATOR + DIFMANAGEMENT +
+const std::string EncoderConstants::WATCHDOG_RIB_OBJECT_NAME = SEPARATOR + DIF + MANAGEMENT +
 		SEPARATOR + WATCHDOG;
 const std::string EncoderConstants::WATCHDOG_RIB_OBJECT_CLASS = "watchdog timer";
 const std::string EncoderConstants::NEIGHBOR_SET_RIB_OBJECT_CLASS = "neighbor set";
 const std::string EncoderConstants::NEIGHBOR_RIB_OBJECT_CLASS = "neighbor";
 const std::string EncoderConstants::NEIGHBOR_SET_RIB_OBJECT_NAME = SEPARATOR + DAF +
-        SEPARATOR + DAFMANAGEMENT + SEPARATOR + NEIGHBORS;
+        SEPARATOR + MANAGEMENT + SEPARATOR + NEIGHBORS;
 const std::string EncoderConstants::ADDRESS_RIB_OBJECT_CLASS = "address";
 const std::string EncoderConstants::ADDRESS_RIB_OBJECT_NAME = SEPARATOR + DAF +
-		SEPARATOR + DAFMANAGEMENT + SEPARATOR + NAMING + SEPARATOR + ADDRESS;
+		SEPARATOR + MANAGEMENT + SEPARATOR + NAMING + SEPARATOR + ADDRESS;
 const std::string EncoderConstants::DATA_TRANSFER_CONSTANTS_RIB_OBJECT_CLASS = "datatransfercons";
 const std::string EncoderConstants::DATA_TRANSFER_CONSTANTS_RIB_OBJECT_NAME = SEPARATOR + DIF +
 		SEPARATOR + IPC + SEPARATOR + DATA_TRANSFER + SEPARATOR + CONSTANTS;
-const std::string EncoderConstants::WHATEVERCAST_NAME_SET_RIB_OBJECT_NAME = SEPARATOR + DAF +
-    SEPARATOR + DAFMANAGEMENT + SEPARATOR + NAMING + SEPARATOR + WHATEVERCAST_NAMES;
-const std::string EncoderConstants::WHATEVERCAST_NAME_SET_RIB_OBJECT_CLASS = "whatname set";
-const std::string EncoderConstants::WHATEVERCAST_NAME_RIB_OBJECT_CLASS = "whatname";
 
 /// CLASS Encoder
 Encoder::~Encoder() {
@@ -1065,6 +1030,46 @@ void* WatchdogEncoder::decode(const rina::ObjectValueInterface * object_value) c
 	result = new int;
 	*result = * ((int *) value->get_value());
 	return result;
+}
+
+// Class AdataUnitEncoder
+// CLASS DataTransferConstantsEncoder
+const rina::SerializedObject* ADataObjectEncoder::encode(const void* object) {
+	rina::ADataObject *adata = (rina::ADataObject*) object;
+	rina::messages::a_data_t gpb_adata;
+
+	gpb_adata.set_sourceaddress(adata->source_address_);
+	gpb_adata.set_destaddress(adata->dest_address_);
+	gpb_adata.set_cdapmessage(adata->encoded_cdap_message_->message_,
+			adata->encoded_cdap_message_->size_);
+
+	int size = gpb_adata.ByteSize();
+	char *serialized_message = new char[size];
+	gpb_adata.SerializeToArray(serialized_message, size);
+	rina::SerializedObject *serialized_object =  new rina::SerializedObject(serialized_message,size);
+
+	return serialized_object;
+}
+
+void* ADataObjectEncoder::decode(
+	const rina::ObjectValueInterface * object_value) const {
+	rina::ADataObject *adata = new rina::ADataObject();
+	rina::messages::a_data_t gpb_adata;
+
+	rina::SerializedObject * serializedObject =
+			Encoder::get_serialized_object(object_value);
+
+	gpb_adata.ParseFromArray(serializedObject->message_, serializedObject->size_);
+
+	adata->source_address_ = gpb_adata.sourceaddress();
+	adata->dest_address_ = gpb_adata.destaddress();
+	char *cdap_message = new char[gpb_adata.cdapmessage().size()];
+	rina::SerializedObject * sr_message = new rina::SerializedObject(
+			cdap_message, gpb_adata.cdapmessage().size());
+	memcpy(cdap_message, gpb_adata.cdapmessage().data(), gpb_adata.cdapmessage().size());
+	adata->encoded_cdap_message_ = sr_message;
+
+	return (void*) adata;
 }
 
 }

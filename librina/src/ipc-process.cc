@@ -152,6 +152,39 @@ const std::string& QueryRIBRequestEvent::getFilter() const{
 	return filter;
 }
 
+/* CLASS SET POLICY SET PARAM REQUEST EVENT */
+SetPolicySetParamRequestEvent::SetPolicySetParamRequestEvent(
+                const std::string& path, const std::string& name,
+                const std::string& value, unsigned int sequenceNumber) :
+				IPCEvent(IPC_PROCESS_SET_POLICY_SET_PARAM,
+                                         sequenceNumber)
+{
+        this->path = path;
+        this->name = name;
+        this->value = value;
+}
+
+/* CLASS SELECT POLICY SET REQUEST EVENT */
+SelectPolicySetRequestEvent::SelectPolicySetRequestEvent(
+                const std::string& path, const std::string& name,
+                                        unsigned int sequenceNumber) :
+				IPCEvent(IPC_PROCESS_SELECT_POLICY_SET,
+                                         sequenceNumber)
+{
+        this->path = path;
+        this->name = name;
+}
+
+/* CLASS PLUGIN LOAD REQUEST EVENT */
+PluginLoadRequestEvent::PluginLoadRequestEvent(const std::string& name,
+                                bool load, unsigned int sequenceNumber) :
+				IPCEvent(IPC_PROCESS_PLUGIN_LOAD,
+                                         sequenceNumber)
+{
+        this->name = name;
+        this->load = load;
+}
+
 /* CLASS CREATE CONNECTION RESPONSE EVENT */
 CreateConnectionResponseEvent::CreateConnectionResponseEvent(int portId,
         int cepId, unsigned int sequenceNumber):
@@ -661,10 +694,73 @@ void ExtendedIPCManager::deallocatePortId(int portId) {
 
         return;
 #else
-        int result = syscallDeallocatePortId(portId);
+        int result = syscallDeallocatePortId(ipcProcessId, portId);
         if (result < 0) {
                 throw PortAllocationException();
         }
+#endif
+}
+
+void ExtendedIPCManager::setPolicySetParamResponse(
+		const SetPolicySetParamRequestEvent& event, int result) {
+#if STUB_API
+	//Do nothing
+        (void) event;
+        (void) result;
+#else
+	IpcmSetPolicySetParamResponseMessage responseMessage;
+	responseMessage.result = result;
+	responseMessage.setSequenceNumber(event.sequenceNumber);
+	responseMessage.setSourceIpcProcessId(ipcProcessId);
+        responseMessage.setDestPortId(ipcManagerPort);
+	responseMessage.setResponseMessage(true);
+	try {
+		rinaManager->sendMessage(&responseMessage);
+	} catch (NetlinkException &e) {
+		throw SetPolicySetParamException(e.what());
+	}
+#endif
+}
+
+void ExtendedIPCManager::selectPolicySetResponse(
+		const SelectPolicySetRequestEvent& event, int result) {
+#if STUB_API
+	//Do nothing
+        (void) event;
+        (void) result;
+#else
+	IpcmSelectPolicySetResponseMessage responseMessage;
+	responseMessage.result = result;
+	responseMessage.setSequenceNumber(event.sequenceNumber);
+	responseMessage.setSourceIpcProcessId(ipcProcessId);
+        responseMessage.setDestPortId(ipcManagerPort);
+	responseMessage.setResponseMessage(true);
+	try {
+		rinaManager->sendMessage(&responseMessage);
+	} catch (NetlinkException &e) {
+		throw SelectPolicySetException(e.what());
+	}
+#endif
+}
+
+void ExtendedIPCManager::pluginLoadResponse(
+		const PluginLoadRequestEvent& event, int result) {
+#if STUB_API
+	//Do nothing
+        (void) event;
+        (void) result;
+#else
+	IpcmPluginLoadResponseMessage responseMessage;
+	responseMessage.result = result;
+	responseMessage.setSequenceNumber(event.sequenceNumber);
+	responseMessage.setSourceIpcProcessId(ipcProcessId);
+        responseMessage.setDestPortId(ipcManagerPort);
+	responseMessage.setResponseMessage(true);
+	try {
+		rinaManager->sendMessage(&responseMessage);
+	} catch (NetlinkException &e) {
+		throw PluginLoadException(e.what());
+	}
 #endif
 }
 
@@ -755,6 +851,13 @@ const std::string Connection::toString() {
         ss<<"; Flow user IPC Process id: "<<flowUserIpcProcessId<<std::endl;
         ss<<"Policies: "<<policies.toString();
         return ss.str();
+}
+
+/* CLASS ROUTING TABLE ENTRE */
+RoutingTableEntry::RoutingTableEntry(){
+	address = 0;
+	cost = 1;
+	qosId = 0;
 }
 
 /* CLASS PDU FORWARDING TABLE ENTRY */
@@ -1061,6 +1164,71 @@ unsigned int KernelIPCProcess::dumptPDUFT() {
                 rinaManager->sendMessage(&message);
         } catch (NetlinkException &e) {
                 throw PDUForwardingTableException(e.what());
+        }
+
+        seqNum = message.getSequenceNumber();
+#endif
+
+        return seqNum;
+}
+
+unsigned int KernelIPCProcess::setPolicySetParam(
+                                const std::string& path,
+                                const std::string& name,
+                                const std::string& value)
+{
+        unsigned int seqNum=0;
+
+#if STUB_API
+        //Do nothing
+        (void) path;
+        (void) name;
+        (void) value;
+#else
+        IpcmSetPolicySetParamRequestMessage message;
+        message.path = path;
+        message.name = name;
+        message.value = value;
+        message.setSourceIpcProcessId(ipcProcessId);
+        message.setDestIpcProcessId(ipcProcessId);
+        message.setDestPortId(0);
+        message.setRequestMessage(true);
+
+        try {
+                rinaManager->sendMessage(&message);
+        } catch (NetlinkException &e) {
+                throw SetPolicySetParamException(e.what());
+        }
+
+        seqNum = message.getSequenceNumber();
+#endif
+
+        return seqNum;
+}
+
+unsigned int KernelIPCProcess::selectPolicySet(
+                                const std::string& path,
+                                const std::string& name)
+{
+        unsigned int seqNum=0;
+
+#if STUB_API
+        //Do nothing
+        (void) path;
+        (void) name;
+#else
+        IpcmSelectPolicySetRequestMessage message;
+        message.path = path;
+        message.name = name;
+        message.setSourceIpcProcessId(ipcProcessId);
+        message.setDestIpcProcessId(ipcProcessId);
+        message.setDestPortId(0);
+        message.setRequestMessage(true);
+
+        try {
+                rinaManager->sendMessage(&message);
+        } catch (NetlinkException &e) {
+                throw SelectPolicySetException(e.what());
         }
 
         seqNum = message.getSequenceNumber();

@@ -57,6 +57,8 @@ public:
 	static const std::string FLOWS;
 	static const std::string FLOW_ALLOCATOR;
 	static const std::string IPC;
+	static const std::string DIFMANAGEMENT;
+	static const std::string DAFMANAGEMENT;
 	static const std::string MANAGEMENT;
 	static const std::string NEIGHBORS;
 	static const std::string NAMING;
@@ -76,6 +78,28 @@ public:
 	static const std::string DIF_NAME_WHATEVERCAST_RULE;
 	static const std::string WATCHDOG;
 
+	static const std::string DAF_RIB_OBJECT_CLASS;
+	static const std::string DAF_RIB_OBJECT_NAME;
+	static const std::string DIF_RIB_OBJECT_CLASS;
+	static const std::string DIF_RIB_OBJECT_NAME;
+	static const std::string DAF_MANAGEMENT_RIB_OBJECT_CLASS;
+	static const std::string DAF_MANAGEMENT_RIB_OBJECT_NAME;
+	static const std::string DIF_MANAGEMENT_RIB_OBJECT_CLASS;
+	static const std::string DIF_MANAGEMENT_RIB_OBJECT_NAME;
+	static const std::string RESOURCE_ALLOCATION_RIB_OBJECT_CLASS;
+	static const std::string RESOURCE_ALLOCATION_RIB_OBJECT_NAME;
+	static const std::string NMINUSONEFLOWMANAGER_RIB_OBJECT_CLASS;
+	static const std::string NMINUSONEFLOWMANAGER_RIB_OBJECT_NAME;
+	static const std::string NAMING_RIB_OBJECT_CLASS;
+	static const std::string NAMING_RIB_OBJECT_NAME;
+	static const std::string FLOW_ALLOCATOR_RIB_OBJECT_CLASS;
+	static const std::string FLOW_ALLOCATOR_RIB_OBJECT_NAME;
+	static const std::string LINKSTATE_RIB_OBJECT_CLASS;
+	static const std::string LINKSTATE_RIB_OBJECT_NAME;
+	static const std::string IPC_RIB_OBJECT_CLASS;
+	static const std::string IPC_RIB_OBJECT_NAME;
+	static const std::string DATA_TRANSFER_RIB_OBJECT_CLASS;
+	static const std::string DATA_TRANSFER_RIB_OBJECT_NAME;
 	/* Full names */
 	static const std::string ADDRESS_RIB_OBJECT_CLASS;
 	static const std::string ADDRESS_RIB_OBJECT_NAME;
@@ -119,7 +143,7 @@ public:
 /// tasks to different subencoders. A different encoder is registered
 /// by each type of object. The encoder also implements static helper functions
 /// to encode/decode sub-objects that are shared between two or more classes.
-class Encoder: public rina::IEncoder {
+class Encoder: public rina::IMasterEncoder {
 public:
 	~Encoder();
 	/// Set the class that serializes/unserializes an object class
@@ -261,6 +285,13 @@ public:
 
 /// Encoder of Watchdog
 class WatchdogEncoder: public rina::EncoderInterface {
+public:
+	const rina::SerializedObject* encode(const void* object);
+	void* decode(const rina::ObjectValueInterface * object_value) const;
+};
+
+/// Encoder of the AData object
+class ADataObjectEncoder: public rina::EncoderInterface {
 public:
 	const rina::SerializedObject* encode(const void* object);
 	void* decode(const rina::ObjectValueInterface * object_value) const;

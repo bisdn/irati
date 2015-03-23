@@ -130,6 +130,18 @@ class IPCManager : public EventLoopData {
         int deallocate_flow(rina::IPCProcess *ipcp,
                             const rina::FlowDeallocateRequestEvent& event);
 
+        int select_policy_set(rina::IPCProcess *ipcp,
+                              const std::string& component_path,
+                              const std::string& policy_set);
+
+        int set_policy_set_param(rina::IPCProcess *ipcp,
+                                 const std::string& path,
+                                 const std::string& name,
+                                 const std::string& value);
+
+        int plugin_load(rina::IPCProcess *ipcp,
+                        const std::string& plugin_name, bool load);
+
         std::string query_rib(rina::IPCProcess *ipcp);
 
         std::string get_log_level() const;
@@ -175,6 +187,15 @@ class IPCManager : public EventLoopData {
                            rina::FlowDeallocateRequestEvent
                           >
                 > pending_flow_deallocations;
+
+        std::map<unsigned int,
+                 rina::IPCProcess *> pending_set_policy_set_param_ops;
+
+        std::map<unsigned int,
+                 rina::IPCProcess *> pending_select_policy_set_ops;
+
+        std::map<unsigned int,
+                 rina::IPCProcess *> pending_plugin_load_ops;
 
         IPCMConcurrency concurrency;
 

@@ -16,6 +16,9 @@ nobase_pkginclude_HEADERS =			\
 	faux-sockets.h				\
 	cdap.h					\
 	rib.h                    		\
+	cdap_v2.h					\
+	rib_v2.h                    		\
+	cdap_rib_structures.h		\
 	sdu-protection.h			\
 	patterns.h				\
 	exceptions.h				\

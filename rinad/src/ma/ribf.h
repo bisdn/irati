@@ -2,7 +2,7 @@
 
 #ifndef __RINAD_RIBM_H__
 #define __RINAD_RIBM_H__
-
+/*
 #include <pthread.h>
 #include <cstdlib>
 #include <iostream>
@@ -17,6 +17,12 @@
 #include <librina/rib.h>
 
 #include "event-loop.h"
+*/
+
+#include <list>
+#include <librina/concurrency.h>
+#include <inttypes.h>
+#include <librina/rib_v2.h>
 
 namespace rinad{
 namespace mad{
@@ -62,7 +68,7 @@ public:
 	* Get a reference to a RIB
 	* @throws eRIBNotFound
 	*/
-	rina::IRIBDaemon& getRIB(uint64_t version);
+	rina::rib::RIBDNorthInterface& getRIB(uint64_t version);
 
 #if 0
 	//TODO: if ever necessary
@@ -86,7 +92,8 @@ protected:
 private:
 
 	//Map with the current RIB instances
-	std::map<uint64_t, rina::IRIBDaemon*> rib_inst;
+	std::map<uint64_t, rina::rib::RIBDNorthInterface*> rib_inst_;
+	rina::rib::RIBDFactory factory_;
 
 	//Constructors
 	RIBFactory_(void);

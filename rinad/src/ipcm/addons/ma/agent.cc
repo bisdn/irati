@@ -1,3 +1,23 @@
+/*
+ * ManagementAgent class
+ *
+ *    Marc Sune <marc.sune (at) bisdn.de>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
 #include "agent.h"
 
 //Subsystems
@@ -10,11 +30,17 @@
 #define RINA_PREFIX "ipcm.mad"
 #include <librina/logs.h>
 
+#include "../../ipcm.h"
+
 // std libraries
 #include <list>
 
 namespace rinad {
 namespace mad {
+
+//Static members
+ManagementAgent* ManagementAgent::inst = NULL;
+const std::string ManagementAgent::NAME = "mad";
 
 //
 // Private methods
@@ -37,6 +63,7 @@ void ManagementAgent::bootstrapNMSDIFs(){
 //Registers the application in the IPCManager
 void ManagementAgent::reg(){
 
+#if 0
         unsigned int seqnum;
 	rina::ApplicationRegistrationInformation ari;
 	std::list<std::string>::const_iterator it;
@@ -95,6 +122,7 @@ void ManagementAgent::reg(){
 		//TODO FIXME XXX: call ipcmanager to register MA to this DIF
 	}
 	*/
+#endif
 }
 
 void ManagementAgent::connect(void){
@@ -133,13 +161,64 @@ void ManagementAgent::addManagerConnection(AppConnection& con){
 	connections.push_back(con);
 }
 
+//Process event
+void ManagementAgent::process_flow_event(rina::IPCEvent** event){
+	flow_manager->process_flow_event(event);
+}
+
+void ManagementAgent::process_ipcm_event(const IPCMEvent& event){
+
+	std::string ipcp_name;
+
+	if(event.ipcp_id != -1)
+		ipcp_name = IPCManager->get_ipcp_name(event.ipcp_id);
+
+	switch(event.type){
+		//Addon related events
+		case IPCM_ADDON_LOADED:
+			LOG_DBG("The addon '%s' has been loaded",
+							event.addon.c_str());
+				break;
+
+		//General events
+		case IPCM_IPCP_CREATED:
+				LOG_DBG("The IPCP '%s'(%d) has been created",
+							ipcp_name.c_str(),
+							event.ipcp_id);
+				break;
+		case IPCM_IPCP_CRASHED:
+				LOG_DBG("IPCP '%s'(%d) has CRASHED!",
+							ipcp_name.c_str(),
+							event.ipcp_id);
+				break;
+		case IPCM_IPCP_TO_BE_DESTROYED:
+				LOG_DBG("IPCP '%s'(%d) is about to be destroyed...",
+							ipcp_name.c_str(),
+							event.ipcp_id);
+				break;
+		case IPCM_IPCP_UPDATED:
+				LOG_DBG("The configuration of the IPCP '%s'(%d) has been updated",
+							ipcp_name.c_str(),
+							event.ipcp_id);
+				break;
+	}
+
+}
+
+
+
 RIBFactory* ManagementAgent::get_rib() const
 {
   return rib_factory;
 }
 
 //Initialization and destruction routines
-ManagementAgent::ManagementAgent(const std::string& params) : Addon(MAD_NAME){
+ManagementAgent::ManagementAgent(const rinad::RINAConfiguration& config) :
+							AppAddon(MAD_NAME){
+
+	//Set ourselves as the instance
+	assert(inst == NULL);
+	inst = this;
 
 	//Nice trace
 	LOG_INFO("Initializing components...");
@@ -147,7 +226,7 @@ ManagementAgent::ManagementAgent(const std::string& params) : Addon(MAD_NAME){
 	//ConfManager must be initialized first, to
 	//proper configure the logging according to the cli level
 	//or the config file
-	conf_manager = new ConfManager(params);
+	conf_manager = new ConfManager(config);
 
 	/*
 	* Initialize subsystems
@@ -183,12 +262,6 @@ ManagementAgent::ManagementAgent(const std::string& params) : Addon(MAD_NAME){
 
 	//Perform connection to the Manager(s)
 	connect();
-
-	/*
-	* Run the bg task manager loop in the main thread to attend
-	* flow events
-	*/
-	flow_manager->runIOLoop();
 }
 
 ManagementAgent::~ManagementAgent(){

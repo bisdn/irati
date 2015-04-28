@@ -129,15 +129,16 @@ AC_CONFIG_FILES([
     src/common/encoders/Makefile
     src/common/tclap/Makefile
     src/ipcp/Makefile
-    src/ipcp/include/Makefile
-    src/ipcp/include/ipcp/Makefile
     src/ipcp/plugins/Makefile
+    src/ipcp/plugins/default/Makefile
+    src/ipcp/plugins/sm-passwd/Makefile
     src/ipcm/Makefile
     src/ipcm/addons/Makefile
     src/ipcm/addons/ma/Makefile
     src/ipcm/addons/ma/ribs/Makefile
     src/ipcm/include/Makefile
     src/ipcm/include/ipcm/Makefile
+    src/manager/Makefile
 
     doc/Makefile
     tools/Makefile

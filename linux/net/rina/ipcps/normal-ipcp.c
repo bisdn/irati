@@ -164,12 +164,12 @@ static int normal_sdu_write(struct ipcp_instance_data * data,
                 sdu_destroy(sdu);
                 return -1;
         }
+        spin_unlock(&data->lock);
+
         if (efcp_container_write(data->efcpc, flow->active, sdu)) {
-                spin_unlock(&data->lock);
                 LOG_ERR("Could not send sdu to EFCP Container");
                 return -1;
         }
-        spin_unlock(&data->lock);
 
         return 0;
 }
@@ -212,12 +212,13 @@ cep_id_t connection_create_request(struct ipcp_instance_data * data,
         conn->source_address      = source;
         conn->port_id             = port_id;
         conn->qos_id              = qos_id;
+        conn->source_cep_id       = cep_id_bad(); /* init value */
+        conn->destination_cep_id  = cep_id_bad(); /* init velue */
         conn->policies_params     = cp_params;  /* Take the ownership. */
 
         cep_id = efcp_connection_create(data->efcpc, NULL, conn);
         if (!is_cep_id_ok(cep_id)) {
                 LOG_ERR("Failed EFCP connection creation");
-                connection_destroy(conn);
                 return cep_id_bad();
         }
 
@@ -371,13 +372,12 @@ static int normal_flow_unbinding_user_ipcp(struct ipcp_instance_data * data,
                         pid);
                 return -1;
         }
+        spin_unlock(&data->lock);
 
         if (efcp_container_unbind_user_ipcp(data->efcpc, flow->active)){
                 spin_unlock(&data->lock);
                 return -1;
         }
-
-        spin_unlock(&data->lock);
 
         return 0;
 }
@@ -444,13 +444,13 @@ connection_create_arrived(struct ipcp_instance_data * data,
         conn->source_address      = source;
         conn->port_id             = port_id;
         conn->qos_id              = qos_id;
+        conn->source_cep_id       = cep_id_bad(); /* init values */
         conn->destination_cep_id  = dst_cep_id;
         conn->policies_params     = cp_params;  /* Take the ownership. */
 
         cep_id = efcp_connection_create(data->efcpc, user_ipcp, conn);
         if (!is_cep_id_ok(cep_id)) {
                 LOG_ERR("Failed EFCP connection creation");
-                connection_destroy(conn);
                 return cep_id_bad();
         }
         LOG_DBG("Cep_id allocated for the arrived connection request: %d",
@@ -529,26 +529,27 @@ static int normal_deallocate(struct ipcp_instance_data * data,
                              port_id_t                   port_id)
 {
         struct normal_flow * flow;
+        unsigned long        flags;
 
         if (!data) {
                 LOG_ERR("Bogus instance passed");
                 return -1;
         }
 
-        spin_lock(&data->lock);
+        spin_lock_irqsave(&data->lock, flags);
         flow = find_flow(data, port_id);
         if (!flow) {
-                spin_unlock(&data->lock);
+                spin_unlock_irqrestore(&data->lock, flags);
                 LOG_ERR("Could not find flow %d to deallocate", port_id);
                 return -1;
         }
         flow->state = PORT_STATE_DEALLOCATED;
-        spin_unlock(&data->lock);
+        spin_unlock_irqrestore(&data->lock, flags);
 
-        if (remove_all_cepid(data, flow))
-                LOG_ERR("Some efcp structures could not be destroyed");
+        remove_all_cepid(data, flow);
 
         list_del(&flow->list);
+
         rkfree(flow);
 
         return 0;
@@ -1154,8 +1155,9 @@ static struct ipcp_instance * normal_create(struct ipcp_factory_data * data,
 static int normal_deallocate_all(struct ipcp_instance_data * data)
 {
         struct normal_flow *flow, *next;
+        unsigned long       flags;
 
-        spin_lock(&data->lock);
+        spin_lock_irqsave(&data->lock, flags);
         list_for_each_entry_safe(flow, next, &(data->flows), list) {
                 if (remove_all_cepid(data, flow))
                         LOG_ERR("Some efcp structures could not be destroyed"
@@ -1164,7 +1166,7 @@ static int normal_deallocate_all(struct ipcp_instance_data * data)
                 list_del(&flow->list);
                 rkfree(flow);
         }
-        spin_unlock(&data->lock);
+        spin_unlock_irqrestore(&data->lock, flags);
 
         return 0;
 }

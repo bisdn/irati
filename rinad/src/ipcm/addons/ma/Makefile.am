@@ -18,10 +18,12 @@ libaddons_ma_la_SOURCES  = 			\
 libaddons_ma_la_CPPFLAGS =			\
 	$(CPPFLAGS_EXTRA)			\
 	$(LIBRINA_CFLAGS)			\
-	-I$(srcdir)/../				\
-	-I$(srcdir)/../common
+	-I$(srcdir)/../../../			\
+	-I$(srcdir)/../../../common		\
+	-I${srcdir}/../../jsoncpp
 
 libaddons_ma_la_LIBADD = 			\
+	$(builddir)/../../../common/librinad.la	\
 	ribs/librinad_ma_ribs.la		\
 	$(LIBRINA_LIBS)
 

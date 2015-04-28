@@ -12,16 +12,19 @@ CLEANFILES   =
 noinst_LTLIBRARIES = librinad_ma_ribs.la
 
 librinad_ma_ribs_la_CFLAGS   =
-librinad_ma_ribs_la_CPPFLAGS =			\
-	$(CPPFLAGS_EXTRA)			\
-	$(LIBRINA_CFLAGS)			\
-	$(LIBPROTOBUF_CFLAGS)			\
-	-I$(srcdir)/../../			\
-	-I$(srcdir)/../../common
+librinad_ma_ribs_la_CPPFLAGS =				\
+	$(CPPFLAGS_EXTRA)				\
+	$(LIBRINA_CFLAGS)				\
+	$(LIBPROTOBUF_CFLAGS)				\
+	-I$(srcdir)/../../				\
+	-I$(srcdir)/../../../../common
 
-librinad_ma_ribs_la_LIBADD   =			\
-	$(LIBRINA_LIBS)				\
+librinad_ma_ribs_la_LIBADD   =				\
+	$(LIBRINA_LIBS)					\
 	$(LIBPROTOBUF_LIBS)
 
-librinad_ma_ribs_la_SOURCES  =			\
+librinad_ma_ribs_la_SOURCES  =				\
+	ipcp_obj.cc   					\
+	os_proc_obj.cc					\
+	ribd_obj.cc					\
 	ribd_v1.cc

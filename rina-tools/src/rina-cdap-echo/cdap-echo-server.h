@@ -27,7 +27,7 @@
 #include <signal.h>
 #include <librina/cdap_v2.h>
 
-#include "cdap-echo-application.h"
+#include "application.h"
 
 class ConnectionCallback : public rina::cdap::CDAPCallbackInterface
 {
@@ -57,12 +57,12 @@ class Server : public Application
  protected:
   void serveEchoFlow(rina::Flow *flow);
   //static void destroyFlow(sigval_t val);
-  bool cacep(rina::Flow *flow);
-  bool release(rina::Flow *flow, int invoke_id);
  private:
   void startWorker(rina::Flow * f);
   int interval;
   int dw;
+  const unsigned int max_sdu_size_in_bytes = 10000;
+
 };
 
 #endif

@@ -110,8 +110,8 @@ struct DIFProperties {
         rina::DataTransferConstants dataTransferConstants;
         std::list<rina::QoSCube> qosCubes;
         rina::RMTConfiguration rmtConfiguration;
-        std::map<std::string, std::string> policies;
-        std::map<std::string, std::string> policyParameters;
+        std::map<std::string, std::string> policySets;
+        std::map<std::string, std::string> policySetParameters;
         rina::EnrollmentTaskConfiguration etConfiguration;
 
         /* Only for normal DIFs */
@@ -222,6 +222,12 @@ class RINAConfiguration {
         std::map<std::string,
                 rina::ApplicationProcessNamingInformation>
                 applicationToDIFMappings;
+
+	/*
+	 * The path of the configuration file where the configuration
+	 * comes from
+	 */
+	std::string configuration_file;
 
         bool lookup_dif_properties(
                         const rina::ApplicationProcessNamingInformation& dif_name,

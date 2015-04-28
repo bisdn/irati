@@ -24,7 +24,7 @@
 #include <ostream>
 #include <sstream>
 
-#define RINA_PREFIX "common"
+#define RINA_PREFIX "librina.common"
 
 #include "librina/logs.h"
 #include "config.h"
@@ -177,6 +177,32 @@ const std::string ApplicationProcessNamingInformation::toString() const{
                 << entityName << ":" << entityInstance;
 
         return ss.str();
+}
+
+ApplicationProcessNamingInformation
+decode_apnameinfo(const std::string &encodedString)
+{
+        ApplicationProcessNamingInformation ret;
+        std::stringstream ss(encodedString);
+        std::string elem;
+        std::vector<std::string> elems;
+
+        while (std::getline(ss, elem, '-')) {
+                elems.push_back(elem);
+        }
+
+        if (elems.size() < 3) {
+                return ret;
+        }
+
+        ret.processName = elems[0];
+        ret.processInstance = elems[1];
+        ret.entityName = elems[2];
+        if (elems.size() >= 4) {
+                ret.entityInstance = elems[3];
+        }
+
+        return ret;
 }
 
 /* CLASS FLOW SPECIFICATION */
@@ -813,8 +839,8 @@ void initialize(unsigned int localPort, const std::string& logLevel,
         }
 
 	setNetlinkPortId(localPort);
-	setLogLevel(logLevel);
-	if (setLogFile(pathToLogFile) != 0) {
+	setLogLevel(logLevel.c_str());
+	if (setLogFile(pathToLogFile.c_str()) != 0) {
 	        LOG_WARN("Error setting log file, using stdout only");
 	}
 	rinaManager->getNetlinkManager();
@@ -832,8 +858,8 @@ void initialize(const std::string& logLevel,
                 throw InitializationException("Librina already initialized");
         }
 
-        setLogLevel(logLevel);
-        if (setLogFile(pathToLogFile) != 0) {
+        setLogLevel(logLevel.c_str());
+        if (setLogFile(pathToLogFile.c_str()) != 0) {
                 LOG_WARN("Error setting log file, using stdout only");
         }
 

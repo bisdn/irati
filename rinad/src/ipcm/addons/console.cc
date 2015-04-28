@@ -2,6 +2,8 @@
  * IPC Manager console
  *
  *    Vincenzo Maffione     <v.maffione@nextworks.it>
+ *    Marc Sune             <marc.sune (at) bisdn.de>
+ *    Eduard Grasa          <eduard.grasa@i2cat.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,6 +36,7 @@
 #include <librina/common.h>
 #include <librina/ipc-manager.h>
 #include <librina/logs.h>
+#include <debug.h>
 
 #include "rina-configuration.h"
 #include "../ipcm.h"
@@ -44,6 +47,8 @@ using namespace std;
 
 namespace rinad {
 
+//Static members
+const std::string IPCMConsole::NAME = "console";
 
 int string2int(const string& s, int& ret)
 {
@@ -70,9 +75,8 @@ console_function(void *opaque)
 	return NULL;
 }
 
-IPCMConsole::IPCMConsole(rina::ThreadAttributes &ta,
-					const unsigned int port_) :
-		Addon("console"),
+IPCMConsole::IPCMConsole(const unsigned int port_) :
+		Addon(IPCMConsole::NAME),
 		port(port_)
 {
 	commands_map["help"] = ConsoleCmdInfo(&IPCMConsole::help,
@@ -134,6 +138,7 @@ IPCMConsole::IPCMConsole(rina::ThreadAttributes &ta,
 				"USAGE: plugin-unload <ipcp-id> "
 				"<plugin-name>");
 
+	rina::ThreadAttributes ta;
 	worker = new rina::Thread(&ta, console_function, this);
 }
 
@@ -365,7 +370,7 @@ IPCMConsole::create_ipcp(vector<string>& args)
 
 	rina::ApplicationProcessNamingInformation ipcp_name(args[1], args[2]);
 
-	if(IPCManager->create_ipcp(&promise, ipcp_name, args[3]) == IPCM_FAILURE ||
+	if(IPCManager->create_ipcp(this, &promise, ipcp_name, args[3]) == IPCM_FAILURE ||
 			promise.wait() != IPCM_SUCCESS){
 		outstream << "Error while creating IPC process" << endl;
 		return CMDRETCONT;
@@ -392,7 +397,7 @@ IPCMConsole::destroy_ipcp(vector<string>& args)
 		return CMDRETCONT;
 	}
 
-	if(IPCManager->destroy_ipcp(ipcp_id) != IPCM_SUCCESS){
+	if(IPCManager->destroy_ipcp(this, ipcp_id) != IPCM_SUCCESS){
 		outstream << "Destroy operation failed" << endl;
 		return CMDRETCONT;
 	}
@@ -452,7 +457,7 @@ IPCMConsole::assign_to_dif(std::vector<string>& args)
 		return CMDRETCONT;
 	}
 
-	if (IPCManager->assign_to_dif(&promise, ipcp_id, dif_name) == IPCM_FAILURE ||
+	if (IPCManager->assign_to_dif(this, &promise, ipcp_id, dif_name) == IPCM_FAILURE ||
 			promise.wait() != IPCM_SUCCESS){
 		outstream << "DIF assignment failed" << endl;
 		return CMDRETCONT;
@@ -484,7 +489,7 @@ IPCMConsole::query_rib(std::vector<string>& args)
 		return CMDRETCONT;
 	}
 
-	if (IPCManager->query_rib(&promise, ipcp_id) == IPCM_FAILURE ||
+	if (IPCManager->query_rib(this, &promise, ipcp_id) == IPCM_FAILURE ||
 			promise.wait() != IPCM_SUCCESS) {
 		outstream << "Query RIB operation failed" << endl;
 		return CMDRETCONT;
@@ -518,7 +523,7 @@ IPCMConsole::register_at_dif(vector<string>& args)
 		return CMDRETCONT;
 	}
 
-	if(IPCManager->register_at_dif(&promise, ipcp_id, dif_name) == IPCM_FAILURE ||
+	if(IPCManager->register_at_dif(this, &promise, ipcp_id, dif_name) == IPCM_FAILURE ||
 			promise.wait() != IPCM_SUCCESS) {
 		outstream << "Registration failed" << endl;
 		return CMDRETCONT;
@@ -559,7 +564,7 @@ IPCMConsole::unregister_from_dif(std::vector<std::string>& args)
 	}
 
 	//Call IPCManager
-	if(IPCManager->unregister_ipcp_from_ipcp(&promise, ipcp_id,
+	if(IPCManager->unregister_ipcp_from_ipcp(this, &promise, ipcp_id,
 			slave_ipcp_id) == IPCM_FAILURE || promise.wait() != IPCM_SUCCESS) {
 		outstream << "Unregistration failed" << endl;
 		return CMDRETCONT;
@@ -593,7 +598,7 @@ IPCMConsole::update_dif_config(std::vector<std::string>& args)
 		return CMDRETCONT;
 	}
 
-	if(IPCManager->update_dif_configuration(&promise, ipcp_id,
+	if(IPCManager->update_dif_configuration(this, &promise, ipcp_id,
 			dif_config) == IPCM_FAILURE || promise.wait() != IPCM_SUCCESS) {
 		outstream << "Configuration update failed" << endl;
 		return CMDRETCONT;
@@ -633,7 +638,7 @@ IPCMConsole::enroll_to_dif(std::vector<std::string>& args)
 		return CMDRETCONT;
 	}
 
-	if(IPCManager->enroll_to_dif(&promise, ipcp_id, neighbor_data) == IPCM_FAILURE ||
+	if(IPCManager->enroll_to_dif(this, &promise, ipcp_id, neighbor_data) == IPCM_FAILURE ||
 			promise.wait() != IPCM_SUCCESS) {
 		outstream << "Enrollment operation failed" << endl;
 		return CMDRETCONT;
@@ -665,7 +670,7 @@ IPCMConsole::select_policy_set(std::vector<std::string>& args)
 		return CMDRETCONT;
 	}
 
-	if(IPCManager->select_policy_set(&promise, ipcp_id, args[2],
+	if(IPCManager->select_policy_set(this, &promise, ipcp_id, args[2],
 			args[3]) == IPCM_FAILURE  || promise.wait() != IPCM_SUCCESS) {
 		outstream << "select-policy-set operation failed" << endl;
 		return CMDRETCONT;
@@ -697,7 +702,7 @@ IPCMConsole::set_policy_set_param(std::vector<std::string>& args)
 		return CMDRETCONT;
 	}
 
-	if(IPCManager->set_policy_set_param(&promise, ipcp_id, args[2],
+	if(IPCManager->set_policy_set_param(this, &promise, ipcp_id, args[2],
 			args[3], args[4]) == IPCM_FAILURE || promise.wait() != IPCM_SUCCESS) {
 		outstream << "set-policy-set-param operation failed"<< endl;
 		return CMDRETCONT;
@@ -735,7 +740,7 @@ IPCMConsole::plugin_load_unload(std::vector<std::string>& args, bool load)
 		un = "un";
 	}
 
-	if(IPCManager->plugin_load(NULL, ipcp_id, args[2], load) == IPCM_FAILURE ||
+	if(IPCManager->plugin_load(this, &promise, ipcp_id, args[2], load) == IPCM_FAILURE ||
 			promise.wait() != IPCM_SUCCESS) {
 		outstream << "Plugin " << un << "loading failed" << endl;
 		return CMDRETCONT;

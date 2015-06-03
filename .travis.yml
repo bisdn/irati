@@ -1,21 +1,26 @@
 language: c
 compiler:
-  - gcc
-#  - clang
+- gcc
 before_install:
-  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-  - sudo apt-get update -qq
-  - sudo apt-get -qq install gcc-4.7; sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.7 90; export CC="gcc-4.7"
-  - sudo apt-get -qq install g++-4.7; sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.7 90; export CXX="g++-4.7"
-  - sudo apt-get install -y -qq libcunit1-dev libcppunit-dev libncurses5-dev bc libnl-3-dev
+- git tag v1.0.0-travis
+- echo "deb http://us.archive.ubuntu.com/ubuntu/ vivid main universe restricted multiverse" | sudo tee -a /etc/apt/sources.list
+- sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+- sudo apt-get update -qq
+- sudo apt-get install -y -qq libnl-genl-3-dev libnl-3-dev libtool autoconf2.13 git libpcre3 pkg-config libpcre3-dev libprotobuf-dev protobuf-compiler tcpdump libcunit1-dev libcppunit-dev libncurses5-dev bc 1> /dev/null
+- sudo apt-get remove gcc-4.6 1> /dev/null
 install:
-  - cp linux/config-TRAVIS linux/.config
+- cp linux/config-TRAVIS linux/.config
 env:
-  #- FLAGS=
+#- FLAGS=
 script:
-  - sudo ./compile-kernel
-  - sudo ./install-kernel
-  - sudo ./install-user-from-scratch
+- cd linux
+- sudo make -j 5 bzImage modules
+- sudo make -j 5 modules_install
+- sudo make install
+- sudo make headers_install
+- cd ..
+- sed --e 's/--enable-java-bindings//g' install-user-from-scratch > install-user-from-scratch
+- sudo ./install-user-from-scratch /usr/local/irati
 notifications:
-  email:
-    - ci@bisdn.de
+email:
+- irati@freelists.org

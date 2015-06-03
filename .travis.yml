@@ -23,4 +23,4 @@ script:
 - sudo ./install-user-from-scratch /usr/local/irati
 notifications:
 email:
-- irati@freelists.org
+- irati-ci@freelists.org

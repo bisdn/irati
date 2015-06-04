@@ -21,6 +21,10 @@ script:
 - cd ..
 - sed --e 's/--enable-java-bindings//g' install-user-from-scratch > install-user-from-scratch
 - sudo ./install-user-from-scratch /usr/local/irati
+- cd build/librina
+- make check
+- cd ../rinad
+- make check
 notifications:
 email:
 - irati-ci@freelists.org

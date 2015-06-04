@@ -1,8 +1,9 @@
+git:
+  depth: 1000
 language: c
 compiler:
   - gcc
 before_install:
-  - git tag v1.0.0-travis
   - echo "deb http://us.archive.ubuntu.com/ubuntu/ vivid main universe restricted multiverse" | sudo tee -a /etc/apt/sources.list
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo apt-get update -qq
@@ -11,19 +12,36 @@ before_install:
 install:
   - cp linux/config-TRAVIS linux/.config
 env:
-  - PATH_REPO=`pwd`
+  #None
 script:
-  - echo "Repository path (variable): $PATH_REPO"
+  #Set necessary envs (here, not in env!)
+  - export PATH_REPO=`pwd`
+  - export V=1
+  - export PREFIX=/usr/local/irati
+  #Kernel
   - cd linux
   - sudo make -j 5 bzImage modules
   - sudo make -j 5 modules_install
   - sudo make install
   - sudo make headers_install
   - cd ..
-  - sed --e 's/--enable-java-bindings//g' install-user-from-scratch > install-user-from-scratch
-  - sudo ./install-user-from-scratch /usr/local/irati
-  - cd $PATH_REPO/build/librina && make -j 5 check
-  - cd $PATH_REPO/build/rinad && make -j 5 check
+  #librina
+  - cd librina/
+  - mkdir -p build
+  - sh bootstrap
+  - cd build
+  - ../configure --disable-silent-rules --with-sysheaders=$PATH_REPO/linux/usr/include --prefix=$PREFIX
+  - sudo make -j 5 install
+  - sudo make -j 5 check
+  - cd ../../
+  #rinad
+  - cd rinad
+  - mkdir -p build
+  - sh bootstrap
+  - cd build
+  - PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig/" ../configure --disable-silent-rules
+  - sudo make -j 5 install
+  - sudo make -j 5 check
 notifications:
   email:
     - irati-ci@freelists.org

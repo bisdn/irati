@@ -18,10 +18,11 @@ script:
   - export PATH_REPO=`pwd`
   - export V=1
   - export PREFIX=/usr/local/irati
+  - export THREADS=2
   #Kernel
   - cd linux
-  - sudo make -j 5 bzImage modules
-  - sudo make -j 5 modules_install
+  - sudo make -j $THREADS bzImage modules
+  - sudo make -j $THREADS modules_install
   - sudo make install
   - sudo make headers_install
   - cd ..
@@ -31,8 +32,8 @@ script:
   - sh bootstrap
   - cd build
   - ../configure --disable-silent-rules --with-sysheaders=$PATH_REPO/linux/usr/include --prefix=$PREFIX
-  - sudo make -j 5 install
-  - sudo make -j 5 check
+  - sudo make -j $THREADS install
+  - sudo make -j $THREADS check
   - cd ../../
   #rinad
   - cd rinad
@@ -40,8 +41,8 @@ script:
   - sh bootstrap
   - cd build
   - PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig/" ../configure --disable-silent-rules
-  - sudo make -j 5 install
-  - sudo make -j 5 check
+  - sudo make -j $THREADS install
+  - sudo make -j $THREADS check
 notifications:
   email:
     - irati-ci@freelists.org

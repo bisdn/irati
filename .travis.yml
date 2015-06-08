@@ -18,7 +18,7 @@ script:
   - export PATH_REPO=`pwd`
   - export V=1
   - export PREFIX=/usr/local/irati
-  - export THREADS=2
+  - export THREADS=3
   #Kernel
   - cd linux
   - sudo make -j $THREADS bzImage modules

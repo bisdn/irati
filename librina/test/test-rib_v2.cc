@@ -761,7 +761,6 @@ void ribBasicOps::testAssociation(){
 
 void ribBasicOps::testAddObj(){
 
-	MyObj* tmp;
 	rib_handle_t wrong_handle = 9999;
 	std::string invalid_name1 = "";
 	std::string invalid_name2 = "x";
@@ -810,11 +809,8 @@ void ribBasicOps::testAddObj(){
 
 	//Add the right object (/x)
 	try{
-		tmp = obj1;
 		inst_id1 = ribd->addObjRIB(handle, name1, obj1);
-		CPPUNIT_ASSERT_MESSAGE("Did not set to null obj1", obj1 == NULL);
 		CPPUNIT_ASSERT_MESSAGE("Invalid instance id for obj1", inst_id1 == 1);
-		obj1 = tmp;
 	}catch(...){
 		CPPUNIT_ASSERT_MESSAGE("Could not add obj with in a valid RIB", 0);
 	}
@@ -837,23 +833,19 @@ void ribBasicOps::testAddObj(){
 		CPPUNIT_ASSERT_MESSAGE("Exception thrown during utils API validation", 0);
 	}
 
-	tmp = obj2;
 	try{
 		ribd->addObjRIB(handle, name1, obj2);
 		CPPUNIT_ASSERT_MESSAGE("Add overlapping object to RIB succeeded", 0);
 	}catch(eObjExists& e){
-		CPPUNIT_ASSERT_MESSAGE("Add overlapping object failed, but modified the object pointer",  tmp == obj2);
+		CPPUNIT_ASSERT_MESSAGE("Add overlapping object failed", 1);
 	}catch(...){
 		CPPUNIT_ASSERT_MESSAGE("Invalid exception thrown during Add obj with an overlapping object", 0);
 	}
 
 	//Add another valid object (/y)
 	try{
-		tmp = obj2;
 		inst_id2 = ribd->addObjRIB(handle, name2, obj2);
-		CPPUNIT_ASSERT_MESSAGE("Did not set to null obj2", obj2 == NULL);
 		CPPUNIT_ASSERT_MESSAGE("Invalid instance id for obj2", inst_id2 == 2);
-		obj2 = tmp;
 	}catch(...){
 		CPPUNIT_ASSERT_MESSAGE("Could not add obj2 with in a valid RIB", 0);
 	}
@@ -875,23 +867,19 @@ void ribBasicOps::testAddObj(){
 	}
 
 	//Retry overlap should fail
-	tmp = obj2;
 	try{
 		ribd->addObjRIB(handle, name2, obj2);
 		CPPUNIT_ASSERT_MESSAGE("Add overlapping object to RIB succeeded", 0);
 	}catch(eObjExists& e){
-		CPPUNIT_ASSERT_MESSAGE("Add overlapping object failed, but modified the object pointer",  tmp == obj2);
+		CPPUNIT_ASSERT_MESSAGE("Add overlapping object failed", 1);
 	}catch(...){
 		CPPUNIT_ASSERT_MESSAGE("Invalid exception thrown during Add obj with an overlapping object", 0);
 	}
 
 	//Add an inner object (/x/z)
 	try{
-		tmp = obj3;
 		inst_id3 = ribd->addObjRIB(handle, name3, obj3);
-		CPPUNIT_ASSERT_MESSAGE("Did not set to null obj3", obj3 == NULL);
 		CPPUNIT_ASSERT_MESSAGE("Invalid instance id for obj3", inst_id3 == 3);
-		obj3 = tmp;
 	}catch(...){
 		CPPUNIT_ASSERT_MESSAGE("Exception thrown during Add obj 3", 0);
 	}
@@ -915,11 +903,8 @@ void ribBasicOps::testAddObj(){
 
 	//Add an inner object (/x/other)
 	try{
-		OtherObj* tmp2 = obj4;
 		inst_id4 = ribd->addObjRIB(handle, name_other, obj4);
-		CPPUNIT_ASSERT_MESSAGE("Did not set to null obj4", obj4 == NULL);
 		CPPUNIT_ASSERT_MESSAGE("Invalid instance id for obj4", inst_id4 == 4);
-		obj4 = tmp2;
 	}catch(...){
 		CPPUNIT_ASSERT_MESSAGE("Exception thrown during Add obj 4", 0);
 	}

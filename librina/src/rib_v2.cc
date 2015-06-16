@@ -1101,8 +1101,6 @@ int64_t RIB::add_obj(const std::string& fqn, RIBObj* obj) {
 		}
 		parent_child_list->push_back(id);
 
-		//Mark pointer as acquired and return
-		obj = NULL;
 		LOG_DBG("Object '%s' of class '%s' succesfully added (id:'%" PRId64 "')",
 									fqn.c_str(),
 									obj->get_class().c_str(),

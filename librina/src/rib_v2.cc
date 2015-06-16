@@ -2412,12 +2412,6 @@ void RIBDaemon::stop_request(const cdap_rib::con_handle_t &con,
 	rib->stop_request(con, obj, filt, invoke_id);
 }
 
-//
-// Encoder AbstractEncoder and base class
-//
-
-AbstractEncoder::~AbstractEncoder() {
-}
 
 //RIBObj/RIBObj_
 void RIBObj::create(const cdap_rib::con_handle_t &con,

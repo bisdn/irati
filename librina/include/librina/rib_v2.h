@@ -191,33 +191,6 @@ public:
 			const cdap_rib::res_info_t &res) = 0;
 };
 
-class AbstractEncoder {
-
-public:
-	virtual ~AbstractEncoder();
-};
-
-template<class T>
-class Encoder: public AbstractEncoder {
-
-public:
-	virtual ~Encoder(){}
-
-	/// Converts an object to a byte array, if this object is recognized by the encoder
-	/// @param object
-	/// @throws exception if the object is not recognized by the encoder
-	/// @return
-	virtual void encode(const T &obj, cdap_rib::ser_obj_t& serobj) = 0;
-	/// Converts a byte array to an object of the type specified by "className"
-	/// @param byte[] serializedObject
-	/// @param objectClass The type of object to be decoded
-	/// @throws exception if the byte array is not an encoded in a way that the
-	/// encoder can recognize, or the byte array value doesn't correspond to an
-	/// object of the type "className"
-	/// @return
-	virtual void decode(const cdap_rib::ser_obj_t &serobj,
-			T& des_obj) = 0;
-};
 
 ///
 /// Base RIB Object. API for the create/delete/read/write/start/stop RIB
@@ -429,13 +402,6 @@ protected:
 	///
 	void operation_not_supported(cdap_rib::res_info_t& res);
 
-	///
-	/// Get the encoder
-	///
-	/// TODO: remove?
-	///
-	virtual AbstractEncoder* get_encoder() = 0;
-
 	///Rwlock
 	rina::ReadWriteLockable rwlock;
 
@@ -461,7 +427,6 @@ public:
 	const std::string& get_class() const{
 		return class_;
 	};
-	AbstractEncoder* get_encoder(){return NULL;}
 
 private:
 	RootObj(void) : RIBObj(), class_("root") { };
@@ -548,27 +513,6 @@ private:
 	unsigned max_objs_;
 };
 
-//
-// EmptyClass (really?)
-//
-class EmptyClass {};
-
-class EmptyEncoder : public rib::Encoder<EmptyClass> {
-
-public:
-	virtual void encode(const EmptyClass &obj, cdap_rib::SerializedObject& serobj){
-		(void)serobj;
-		(void)obj;
-	};
-	virtual void decode(const cdap_rib::SerializedObject &serobj,
-			EmptyClass& des_obj){
-		(void)serobj;
-		(void)des_obj;
-	};
-	std::string get_type() const{
-		return "EmptyClass";
-	};
-};
 
 //fwd decl
 class RIBDaemon;

@@ -273,28 +273,6 @@ public:
 
 static CDAPProviderMockup cdap_provider_mockup;
 static cdap::CDAPCallbackInterface* rib_provider = NULL;
-//
-//
-//
-
-class MyObjEncoder: public Encoder<uint32_t> {
-
-public:
-	virtual ~MyObjEncoder(){}
-
-	void encode(const uint32_t &obj, cdap_rib::ser_obj_t& serobj){
-		//TODO fill in
-		(void)obj;
-		(void)serobj;
-	};
-
-	virtual void decode(const cdap_rib::ser_obj_t &serobj,
-							uint32_t& des_obj){
-		//TODO fill in
-		(void)serobj;
-		(void)des_obj;
-	};
-};
 
 //A type
 class MyObj : public RIBObj {
@@ -308,10 +286,6 @@ public:
 	const std::string& get_class() const{
 		return class_;
 	}
-
-	AbstractEncoder* get_encoder(){
-		return &encoder;
-	};
 
 	void read(const cdap_rib::con_handle_t &con,
 					const std::string& fqn,
@@ -337,7 +311,6 @@ public:
 		return true;
 	}
 
-	MyObjEncoder encoder;
 	static const std::string class_;
 	uint32_t initial_value_;
 };
@@ -357,10 +330,6 @@ public:
 		return class_;
 	}
 
-	AbstractEncoder* get_encoder(){
-		return &encoder;
-	};
-
 	void read(const cdap_rib::con_handle_t &con,
 					const std::string& fqn,
 					const std::string& class_,
@@ -370,9 +339,6 @@ public:
 					cdap_rib::res_info_t& res){
 	};
 
-
-
-	MyObjEncoder encoder;
 	static const std::string class_;
 	uint32_t initial_value_;
 };
@@ -392,9 +358,6 @@ public:
 		return class_;
 	}
 
-	AbstractEncoder* get_encoder(){
-		return &encoder;
-	};
 
 	void start(const cdap_rib::con_handle_t &con,
 				const std::string& fqn,
@@ -418,7 +381,6 @@ public:
 		deleg_start_operations++;
 	}
 
-	MyObjEncoder encoder;
 	static const std::string class_;
 };
 

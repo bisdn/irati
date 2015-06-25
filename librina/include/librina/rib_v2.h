@@ -191,44 +191,11 @@ public:
 			const cdap_rib::res_info_t &res) = 0;
 };
 
-class AbstractEncoder {
-
-public:
-	virtual ~AbstractEncoder();
-};
-
-template<class T>
-class Encoder: public AbstractEncoder {
-
-public:
-	virtual ~Encoder(){}
-
-	/// Converts an object to a byte array, if this object is recognized by the encoder
-	/// @param object
-	/// @throws exception if the object is not recognized by the encoder
-	/// @return
-	virtual void encode(const T &obj, cdap_rib::ser_obj_t& serobj) = 0;
-	/// Converts a byte array to an object of the type specified by "className"
-	/// @param byte[] serializedObject
-	/// @param objectClass The type of object to be decoded
-	/// @throws exception if the byte array is not an encoded in a way that the
-	/// encoder can recognize, or the byte array value doesn't correspond to an
-	/// object of the type "className"
-	/// @return
-	virtual void decode(const cdap_rib::ser_obj_t &serobj,
-			T& des_obj) = 0;
-};
-
-//fwd decl
-template <typename T>
-class RIBObj;
 
 ///
-/// @internal non-template dependent base RIBObj
 /// Base RIB Object. API for the create/delete/read/write/start/stop RIB
 /// functionality for certain objects (identified by objectNames)
-///
-class RIBObj_{
+class RIBObj{
 
 public:
 
@@ -238,13 +205,13 @@ public:
 	/// @param user User-specific context (type associated)
 	/// @param fqn Fully qualifed name (
 	///
-	RIBObj_() : delegates(false), parent_inst_id(-1){};
+	RIBObj() : delegates(false), parent_inst_id(-1){};
 
 	/// Fully qualified name
 	const std::string fqn;
 
 	/// Destructor
-	virtual ~RIBObj_(){};
+	virtual ~RIBObj(){};
 
 protected:
 	///
@@ -435,13 +402,6 @@ protected:
 	///
 	void operation_not_supported(cdap_rib::res_info_t& res);
 
-	///
-	/// Get the encoder
-	///
-	/// TODO: remove?
-	///
-	virtual AbstractEncoder* get_encoder() = 0;
-
 	///Rwlock
 	rina::ReadWriteLockable rwlock;
 
@@ -451,79 +411,25 @@ protected:
 	//Instance id of the parent
 	int64_t parent_inst_id;
 
-	//They love each other
-	template<typename T> friend class RIBObj;
-
 	//Them too; promiscuous?
 	friend class RIB;
 };
-///
-/// Base RIB Object. API for the create/delete/read/write/start/stop RIB
-/// functionality for certain objects (identified by objectNames)
-///
-/// @template T The user-data type. Must support assignation operator
-///
-template<typename T>
-class RIBObj : public RIBObj_{
 
-public:
-
-	///
-	/// Constructor
-	///
-	/// @param user User-specific context (type associated)
-	/// @param fqn Fully qualifed name (
-	///
-	RIBObj(T user_data_){
-		user_data = user_data_;
-	}
-
-
-	///
-	/// Retrieve user data
-	///
-	virtual T get_user_data(void){
-		//Mutual exclusion
-		ReadScopedLock wlock(rwlock);
-
-		return user_data;
-	}
-
-	///
-	/// Set user data
-	///
-	virtual void set_user_data(T new_user_data){
-		//Mutual exclusion
-		WriteScopedLock wlock(rwlock);
-
-		user_data = new_user_data;
-	}
-
-	/// Destructor
-	virtual ~RIBObj(){};
-
-protected:
-	///
-	/// User data
-	///
-	T user_data;
-};
 
 
 ///
 /// @internal Root object class
 ///
-class RootObj : public RIBObj<void*>{
+class RootObj : public RIBObj{
 
 public:
 
 	const std::string& get_class() const{
 		return class_;
 	};
-	AbstractEncoder* get_encoder(){return NULL;}
 
 private:
-	RootObj(void) : RIBObj(NULL), class_("root") { };
+	RootObj(void) : RIBObj(), class_("root") { };
 	~RootObj(void){};
 
 	//Class name
@@ -537,11 +443,11 @@ private:
 /// This class is used to capture operations on objects in a part of the tree
 /// without having to add explicitely the objects (catch all)
 ///
-class DelegationObj : public RIBObj<void*>{
+class DelegationObj : public RIBObj{
 
 public:
 	/// Constructor
-	DelegationObj(void) : RIBObj(NULL) {
+	DelegationObj(void) : RIBObj() {
 		delegates = true;
 	};
 
@@ -607,27 +513,6 @@ private:
 	unsigned max_objs_;
 };
 
-//
-// EmptyClass (really?)
-//
-class EmptyClass {};
-
-class EmptyEncoder : public rib::Encoder<EmptyClass> {
-
-public:
-	virtual void encode(const EmptyClass &obj, cdap_rib::SerializedObject& serobj){
-		(void)serobj;
-		(void)obj;
-	};
-	virtual void decode(const cdap_rib::SerializedObject &serobj,
-			EmptyClass& des_obj){
-		(void)serobj;
-		(void)des_obj;
-	};
-	std::string get_type() const{
-		return "EmptyClass";
-	};
-};
 
 //fwd decl
 class RIBDaemon;
@@ -761,18 +646,8 @@ public:
 	/// @ret The instance id of the object created
 	/// @throws eRIBNotFound, eObjExists, eObjInvalid, eObjNoParent
 	///
-	template<typename R>
 	int64_t addObjRIB(const rib_handle_t& handle, const std::string& fqn,
-							 R** obj){
-		RIBObj_** obj_;
-		//Recover the non-templatized part
-		try{
-			obj_ = reinterpret_cast<RIBObj_**>(obj);
-		}catch(...){
-			throw eObjInvalid();
-		}
-		return __addObjRIB(handle, fqn, obj_);
-	}
+	                  RIBObj* obj);
 
 	///
 	/// Retrieve the instance ID of an object given its fully
@@ -940,11 +815,6 @@ public:
 				const cdap_rib::filt_info_t &filt);
 
 private:
-
-	///@internal
-	int64_t __addObjRIB(const rib_handle_t& h, const std::string& fqn,
-								 RIBObj_** o);
-
 	//Constructor
 	RIBDaemonProxy(RIBDaemon* ribd_);
 

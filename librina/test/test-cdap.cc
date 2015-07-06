@@ -119,7 +119,7 @@ int m_Release_R(CDAPSessionManagerInterface &session_manager,
 	const SerializedObject *serialized_message;
 	int assert = -1;
 
-	// M_CONNECT_R message
+	// M_RELEASE_R message
 	sent_message = session_manager.getReleaseConnectionResponseMessage(CDAPMessage::NONE_FLAGS, 1, "ok", invoke_id);
 	serialized_message = session_manager.encodeNextMessageToBeSent(*sent_message, port_B);
 	session_manager.messageSent(*sent_message, port_B);
@@ -133,7 +133,6 @@ int m_Release_R(CDAPSessionManagerInterface &session_manager,
 	} catch (CDAPException &e) {
 		assert = 1;
 	}
-
 	delete sent_message;
 	sent_message = 0;
 	delete serialized_message;

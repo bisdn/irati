@@ -22,22 +22,17 @@
 #include <sstream>
 #include <iostream>
 
+#define IPCP_MODULE "components"
+#include "ipcp-logging.h"
 #include "components.h"
 
 namespace rinad {
 
-//	CLASS EnrollmentRequest
-EnrollmentRequest::EnrollmentRequest(rina::Neighbor * neighbor) {
-	neighbor_ = neighbor;
-	ipcm_initiated_ = false;
-}
-
-EnrollmentRequest::EnrollmentRequest(
-		rina::Neighbor * neighbor, const rina::EnrollToDIFRequestEvent & event) {
-	neighbor_ = neighbor;
-	event_ = event;
-	ipcm_initiated_ = true;
-}
+const std::string IResourceAllocator::RESOURCE_ALLOCATOR_AE_NAME = "resource-allocator";
+const std::string IResourceAllocator::PDUFT_GEN_COMPONENT_NAME = "pduft-generator";
+const std::string INamespaceManager::NAMESPACE_MANAGER_AE_NAME = "namespace-manager";
+const std::string IRoutingComponent::ROUTING_COMPONENT_AE_NAME = "routing";
+const std::string IFlowAllocator::FLOW_ALLOCATOR_AE_NAME = "flow-allocator";
 
 //	CLASS Flow
 Flow::Flow() {
@@ -52,6 +47,31 @@ Flow::Flow() {
 	source = false;
 	state = EMPTY;
 	access_control = 0;
+}
+
+Flow::Flow(const Flow& flow) {
+	source_naming_info = flow.source_naming_info;
+	destination_naming_info = flow.destination_naming_info;
+	flow_specification = flow.flow_specification;
+	source_port_id = flow.source_port_id;
+	destination_port_id = flow.destination_port_id;
+	source_address = flow.source_address;
+	destination_address = flow.destination_address;
+	current_connection_index = flow.current_connection_index;
+	max_create_flow_retries = flow.max_create_flow_retries;
+	create_flow_retries = flow.create_flow_retries;
+	hop_count = flow.hop_count;
+	source = flow.source;
+	state = flow.state;
+	access_control = 0;
+
+	std::list<rina::Connection*>::const_iterator it;
+	rina::Connection * current = 0;
+	for (it = flow.connections.begin();
+			it != flow.connections.end(); ++it) {
+		current = *it;
+		connections.push_back(new rina::Connection(*current));
+	}
 }
 
 Flow::~Flow() {
@@ -80,7 +100,7 @@ rina::Connection * Flow::getActiveConnection() {
 		}
 	}
 
-	throw Exception("No active connection is currently defined");
+	throw rina::Exception("No active connection is currently defined");
 }
 
 std::string Flow::toString() {
@@ -98,8 +118,8 @@ std::string Flow::toString() {
 	ss << "* Source port id: " << source_port_id << std::endl;
 	ss << "* Destination AP Naming Info: "
 			<< destination_naming_info.toString();
-	ss << "* Destination addres: " + destination_address << std::endl;
-	ss << "* Destination port id: " + destination_port_id << std::endl;
+	ss << "* Destination addres: " << destination_address << std::endl;
+	ss << "* Destination port id: " << destination_port_id << std::endl;
 	if (connections.size() > 0) {
 		ss << "* Connection ids of the connection supporting this flow: +\n";
 		for (std::list<rina::Connection*>::const_iterator iterator =
@@ -113,6 +133,35 @@ std::string Flow::toString() {
 	ss << "* Index of the current active connection for this flow: "
 			<< current_connection_index << std::endl;
 	return ss.str();
+}
+
+// Class IResourceAllocator
+int IResourceAllocator::set_pduft_gen_policy_set(const std::string& name)
+{
+	if (!ipcp) {
+		LOG_IPCP_ERR("IPCP is null");
+		return -1;
+	}
+
+	if (pduft_gen_ps) {
+		LOG_IPCP_ERR("PDUFT Generator policy set already present");
+		return -1;
+	}
+
+	std::stringstream ss;
+	ss << RESOURCE_ALLOCATOR_AE_NAME << "/" << PDUFT_GEN_COMPONENT_NAME;
+        pduft_gen_ps = (IPDUFTGeneratorPs *) ipcp->psCreate(ss.str(),
+        					     	    name,
+        					     	    this);
+        if (!pduft_gen_ps) {
+                LOG_IPCP_ERR("failed to allocate instance of policy set %s",
+                	     name.c_str());
+                return -1;
+        }
+
+        LOG_INFO("PDUFT Generator policy-set %s added to the resource-allocator",
+                 name.c_str());
+        return 0;
 }
 
 // Class BaseRIBObject
@@ -168,7 +217,7 @@ SimpleSetIPCPRIBObject::SimpleSetIPCPRIBObject(IPCProcess * ipc_process, const s
 void SimpleSetIPCPRIBObject::createObject(const std::string& objectClass, const std::string& objectName,
 		const void* objectValue) {
 	if (set_member_object_class_.compare(objectClass) != 0) {
-		throw Exception("Class of set member does not match the expected value");
+		throw rina::Exception("Class of set member does not match the expected value");
 	}
 
 	SimpleSetMemberIPCPRIBObject * ribObject = new SimpleSetMemberIPCPRIBObject(ipc_process_, objectClass,
@@ -194,17 +243,21 @@ void SimpleSetMemberIPCPRIBObject::deleteObject(const void* objectValue)
 	rib_daemon_->removeRIBObject(name_);
 }
 
-IPCProcess::IPCProcess()
+//Class IPCProcess
+IPCProcess::IPCProcess(const std::string& name, const std::string& instance)
+			: rina::ApplicationProcess(name, instance)
 {
 	delimiter_ = 0;
 	encoder_ = 0;
 	cdap_session_manager_ = 0;
+	internal_event_manager_ = 0;
 	enrollment_task_ = 0;
 	flow_allocator_ = 0;
 	namespace_manager_ = 0;
 	resource_allocator_ = 0;
 	security_manager_ = 0;
 	rib_daemon_ = 0;
+	routing_component_ = 0;
 }
 
 }

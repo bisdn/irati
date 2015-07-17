@@ -3,6 +3,7 @@
  *
  *    Francesco Salvestrini <f.salvestrini@nextworks.it>
  *    Miquel Tarzan         <miquel.tarzan@i2cat.net>
+ *    Leonardo Bergesio     <leonardo.bergesio@i2cat.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,10 +23,15 @@
 #ifndef RINA_RMT_H
 #define RINA_RMT_H
 
+#include <linux/hashtable.h>
+#include <linux/crypto.h>
+
 #include "common.h"
 #include "du.h"
 #include "efcp.h"
 #include "ipcp-factories.h"
+#include "ipcp-instances.h"
+#include "ps-factory.h"
 
 struct rmt;
 
@@ -45,6 +51,58 @@ struct rmt;
 
 /* NOTE: There's one RMT for each IPC Process */
 
+/* Plugin support */
+
+#define RMT_PS_HASHSIZE 7
+
+enum flow_state {
+        N1_PORT_STATE_ENABLED,
+        N1_PORT_STATE_DISABLED,
+        N1_PORT_STATE_DEALLOCATED,
+};
+
+struct rmt_n1_port {
+        spinlock_t             lock;
+        port_id_t              port_id;
+        struct ipcp_instance * n1_ipcp;
+        struct hlist_node      hlist;
+        enum flow_state        state;
+        atomic_t               n_sdus;
+        struct dup_config_entry * dup_config;
+        struct crypto_blkcipher * blkcipher;
+        atomic_t               pending_ops;
+};
+
+/* The key in this struct is used to filter by cep_ids, qos_id, address... */
+struct rmt_kqueue {
+        struct rfifo *    queue;
+        unsigned int      key;
+        unsigned int      max_q;
+        unsigned int      min_qth;
+        unsigned int      max_qth;
+        struct hlist_node hlist;
+};
+
+struct rmt_qgroup {
+        port_id_t         pid;
+        struct hlist_node hlist;
+        DECLARE_HASHTABLE(queues, RMT_PS_HASHSIZE);
+};
+
+struct rmt_queue_set {
+        DECLARE_HASHTABLE(qgroups, RMT_PS_HASHSIZE);
+};
+
+struct rmt_kqueue *     rmt_kqueue_create(unsigned int key);
+int                     rmt_kqueue_destroy(struct rmt_kqueue * q);
+struct rmt_qgroup *     rmt_qgroup_create(port_id_t pid);
+int                     rmt_qgroup_destroy(struct rmt_qgroup* g);
+struct rmt_kqueue *     rmt_kqueue_find(struct rmt_qgroup * g,
+                                        unsigned int        key);
+struct rmt_queue_set *  rmt_queue_set_create(void);
+int                     rmt_queue_set_destroy(struct rmt_queue_set * qs);
+struct rmt_qgroup *     rmt_qgroup_find(struct rmt_queue_set * qs,
+                                        port_id_t              pid);
 struct rmt * rmt_create(struct ipcp_instance *  parent,
                         struct kfa *            kfa,
                         struct efcp_container * efcpc);
@@ -54,39 +112,53 @@ int          rmt_address_set(struct rmt * instance,
                              address_t    address);
 int          rmt_dt_cons_set(struct rmt *     instance,
                              struct dt_cons * dt_cons);
+int 	     rmt_sdup_config_set(struct rmt *         instance,
+                    	         struct sdup_config * sdup_conf);
+int          rmt_config_set(struct rmt *        instance,
+                            struct rmt_config * rmt_config);
 
 int          rmt_n1port_bind(struct rmt * instance,
-                             port_id_t    id);
+                             port_id_t    id,
+                             struct ipcp_instance * n1_ipcp);
 int          rmt_n1port_unbind(struct rmt * instance,
                                port_id_t    id);
-int          rmt_pft_add(struct rmt *       instance,
-                         address_t          destination,
-                         qos_id_t           qos_id,
-                         const port_id_t  * ports,
-                         size_t             count);
-int          rmt_pft_remove(struct rmt *       instance,
-                            address_t          destination,
-                            qos_id_t           qos_id,
-                            const port_id_t  * ports,
-                            const size_t       count);
-int          rmt_pft_dump(struct rmt *       instance,
+int          rmt_pff_add(struct rmt *           instance,
+			 struct mod_pff_entry * entry);
+int          rmt_pff_remove(struct rmt *        instance,
+			 struct mod_pff_entry * entry);
+int          rmt_pff_dump(struct rmt *       instance,
                           struct list_head * entries);
-int          rmt_pft_flush(struct rmt * instance);
+int          rmt_pff_flush(struct rmt * instance);
 
 int          rmt_send(struct rmt * instance,
-                      address_t    address,
-                      qos_id_t     qos_id,
+                      struct pci * pci,
                       struct pdu * pdu);
-
 int          rmt_send_port_id(struct rmt *  instance,
                               port_id_t     id,
                               struct pdu *  pdu);
-
 int          rmt_receive(struct rmt * instance,
                          struct sdu * sdu,
                          port_id_t    from);
 
-int          rmt_flush_work(struct rmt * rmt);
-int          rmt_restart_work(struct rmt * rmt);
+int          rmt_enable_port_id(struct rmt * instance,
+                                port_id_t    id);
+int          rmt_disable_port_id(struct rmt * instance,
+                                 port_id_t    id);
+
+int          rmt_select_policy_set(struct rmt * rmt, const string_t *path,
+                                   const string_t * name);
+
+int          rmt_set_policy_set_param(struct rmt * rmt,
+                                      const string_t * path,
+                                      const string_t * name,
+                                      const string_t * value);
+
+int 	     rmt_enable_encryption(struct rmt *     instance,
+			     	   bool 	    enable_encryption,
+			     	   bool    	    enable_decryption,
+			     	   struct buffer *  encrypt_key,
+			     	   port_id_t 	    port_id);
+
+struct rmt * rmt_from_component(struct rina_component * component);
 
 #endif

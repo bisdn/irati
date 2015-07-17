@@ -146,11 +146,13 @@ static int dispatcher(struct sk_buff * skb_in, struct genl_info * info)
 
 #define __NLA_INIT(TYPE, LEN) { .type = TYPE, .len = LEN }
 
+#define NLA_INIT_U64    __NLA_INIT(NLA_U64,    8)
 #define NLA_INIT_U32    __NLA_INIT(NLA_U32,    4)
 #define NLA_INIT_U16    __NLA_INIT(NLA_U16,    2)
 #define NLA_INIT_NESTED __NLA_INIT(NLA_NESTED, 0)
 #define NLA_INIT_STRING __NLA_INIT(NLA_STRING, 0)
 #define NLA_INIT_FLAG   __NLA_INIT(NLA_FLAG,   0)
+#define NLA_INIT_UNSPEC __NLA_INIT(NLA_UNSPEC, 0)
 
 static struct nla_policy iatdr_policy[IATDR_ATTR_MAX + 1] = {
         [IATDR_ATTR_DIF_INFORMATION] = NLA_INIT_NESTED,
@@ -240,14 +242,34 @@ static struct nla_policy iuar_policy[IUAR_ATTR_MAX + 1] = {
 };
 
 static struct nla_policy idqr_policy[IDQR_ATTR_MAX + 1] = {
-        [IDQR_ATTR_OBJECT] = NLA_INIT_NESTED,
-        [IDQR_ATTR_SCOPE]  = NLA_INIT_U32,
-        [IDQR_ATTR_FILTER] = NLA_INIT_STRING,
+        [IDQR_ATTR_OBJECT_CLASS]    = NLA_INIT_STRING,
+        [IDQR_ATTR_OBJECT_NAME]     = NLA_INIT_STRING,
+        [IDQR_ATTR_OBJECT_INSTANCE] = NLA_INIT_U64,
+        [IDQR_ATTR_SCOPE]           = NLA_INIT_U32,
+        [IDQR_ATTR_FILTER] 	    = NLA_INIT_STRING,
 };
 
 static struct nla_policy rmpfe_policy[RMPFE_ATTR_MAX + 1] = {
         [RMPFE_ATTR_ENTRIES] = NLA_INIT_NESTED,
         [RMPFE_ATTR_MODE]    = NLA_INIT_U32,
+};
+
+static struct nla_policy ispsp_policy[ISPSP_ATTR_MAX + 1] = {
+        [ISPSP_ATTR_PATH] = NLA_INIT_STRING,
+        [ISPSP_ATTR_NAME] = NLA_INIT_STRING,
+        [ISPSP_ATTR_VALUE] = NLA_INIT_STRING,
+};
+
+static struct nla_policy isps_policy[ISPS_ATTR_MAX + 1] = {
+        [ISPS_ATTR_PATH] = NLA_INIT_STRING,
+        [ISPS_ATTR_NAME] = NLA_INIT_STRING,
+};
+
+static struct nla_policy ieerm_policy[IEERM_ATTR_MAX + 1] = {
+	[IEERM_ATTR_N_1_PORT] 	 	   = NLA_INIT_U32,
+        [IEERM_ATTR_EN_ENCRYPT] 	   = NLA_INIT_FLAG,
+        [IEERM_ATTR_EN_DECRYPT] 	   = NLA_INIT_FLAG,
+        [IEERM_ATTR_ENCRYPT_KEY] 	   = NLA_INIT_UNSPEC,
 };
 
 #define DECL_NL_OP(COMMAND, POLICY) {           \
@@ -296,7 +318,13 @@ static struct genl_ops nl_ops[] = {
         DECL_NL_OP(RINA_C_IPCP_CONN_UPDATE_REQUEST, icurq_policy),
         DECL_NL_OP(RINA_C_IPCP_CONN_UPDATE_RESULT, NULL),
         DECL_NL_OP(RINA_C_IPCP_CONN_DESTROY_REQUEST, icdr_policy),
-        DECL_NL_OP(RINA_C_IPCP_CONN_DESTROY_RESULT, NULL)
+        DECL_NL_OP(RINA_C_IPCP_CONN_DESTROY_RESULT, NULL),
+        DECL_NL_OP(RINA_C_IPCP_SET_POLICY_SET_PARAM_REQUEST, ispsp_policy),
+        DECL_NL_OP(RINA_C_IPCP_SET_POLICY_SET_PARAM_RESPONSE, NULL),
+        DECL_NL_OP(RINA_C_IPCP_SELECT_POLICY_SET_REQUEST, isps_policy),
+        DECL_NL_OP(RINA_C_IPCP_SELECT_POLICY_SET_RESPONSE, NULL),
+        DECL_NL_OP(RINA_C_IPCP_ENABLE_ENCRYPTION_REQUEST, ieerm_policy),
+        DECL_NL_OP(RINA_C_IPCP_ENABLE_ENCRYPTION_RESPONSE, NULL)
 };
 
 int rnl_handler_register(struct rnl_set *   set,
@@ -531,6 +559,11 @@ static int netlink_notify_callback(struct notifier_block * nb,
         if (!notify) {
                 LOG_ERR("Wrong data obtained in netlink notifier callback");
                 return NOTIFY_BAD;
+        }
+
+        //Only consider messages of the Generic Netlink protocol
+        if (notify->protocol != NETLINK_GENERIC) {
+        	return NOTIFY_DONE;
         }
 
         port = rnl_get_ipc_manager_port();

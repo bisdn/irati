@@ -17,7 +17,7 @@ AC_CONFIG_SRCDIR([src/ipcm/main.cc])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 
-AM_INIT_AUTOMAKE([1.11.1 tar-pax foreign -Wall])
+AM_INIT_AUTOMAKE([1.11.1 tar-pax foreign -Wall subdir-objects])
 #AM_INIT_AUTOMAKE([1.11.1 tar-pax foreign std-options -Wall])
 
 AC_PROG_SED
@@ -46,6 +46,8 @@ AM_PROG_AR
 LT_INIT
 
 CPPFLAGS_EXTRA=""
+CXXFLAGS_EXTRA=""
+
 AX_CHECK_COMPILE_FLAG([ -Wall ], [
     CPPFLAGS_EXTRA="$CPPFLAGS_EXTRA -Wall"
 ])
@@ -67,7 +69,32 @@ AX_CHECK_COMPILE_FLAG([ -Werror ], [
 AX_CHECK_COMPILE_FLAG([ -Wfatal-errors ], [
     CPPFLAGS_EXTRA="$CPPFLAGS_EXTRA -Wfatal-errors"
 ])
+
+want_debug=no
+AX_SELECTOR_ENABLE([debug],[
+    want_debug=yes
+],[
+    want_debug=no
+])
+AS_IF([test "$want_debug" = "yes"],[
+    AX_CHECK_COMPILE_FLAG([ -g ], [
+        CXXFLAGS_EXTRA="$CXXFLAGS_EXTRA -g"
+    ])
+    AS_IF([`echo $CXXFLAGS|$GREP '\\\-O2'`],[
+        AC_MSG_NOTICE([Patching flags])
+        CXXFLAGS="`echo $CXXFLAGS | $SED -e 's|-O2||'`"
+        AC_MSG_NOTICE([Flags are now '$CXXFLAGS'])
+    ])
+    AX_CHECK_COMPILE_FLAG([ -O0 ], [
+        CXXFLAGS_EXTRA="$CXXFLAGS_EXTRA -O0"
+    ])
+    AX_CHECK_COMPILE_FLAG([ -fno-inline ], [
+        CXXFLAGS_EXTRA="$CXXFLAGS_EXTRA -fno-inline"
+    ])
+])
+
 AC_SUBST(CPPFLAGS_EXTRA, $CPPFLAGS_EXTRA)
+AC_SUBST(CXXFLAGS_EXTRA, $CXXFLAGS_EXTRA)
 
 #AX_CXX_COMPILE_STDCXX_11([noext],[mandatory])
 
@@ -102,7 +129,15 @@ AC_CONFIG_FILES([
     src/common/encoders/Makefile
     src/common/tclap/Makefile
     src/ipcp/Makefile
+    src/ipcp/plugins/Makefile
+    src/ipcp/plugins/default/Makefile
+    src/ipcp/plugins/sm-passwd/Makefile
     src/ipcm/Makefile
+    src/ipcm/addons/Makefile
+    src/ipcm/addons/ma/Makefile
+    src/ipcm/addons/ma/ribs/Makefile
+    src/ipcm/include/Makefile
+    src/ipcm/include/ipcm/Makefile
 
     doc/Makefile
     tools/Makefile

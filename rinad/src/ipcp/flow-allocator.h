@@ -32,8 +32,11 @@
 namespace rinad {
 
 /// Flow Allocator Instance Interface
-class IFlowAllocatorInstance {
+class IFlowAllocatorInstance : public rina::BaseCDAPResponseMessageHandler,
+							   public rina::ApplicationEntityInstance {
 public:
+	IFlowAllocatorInstance(const std::string& instance_id) :
+		rina::ApplicationEntityInstance(instance_id) { };
 	virtual ~IFlowAllocatorInstance() {
 	}
 	;
@@ -53,7 +56,7 @@ public:
 	/// M_CREATE request with the flow object and send it to the appropriate IPC process (search the
 	/// directory and the directory forwarding table if needed)
 	/// @param flowRequestEvent The flow allocation request
-	/// @throws Exception if there are not enough resources to fulfill the allocate request
+	/// @throws rina::Exception if there are not enough resources to fulfill the allocate request
 	virtual void submitAllocateRequest(const rina::FlowRequestEvent& event) = 0;
 
 	virtual void processCreateConnectionResponseEvent(
@@ -73,7 +76,7 @@ public:
 	/// @param requestMessate the CDAP request message
 	/// @param underlyingPortId the port id to reply later on
 	virtual void createFlowRequestMessageReceived(Flow * flow, const std::string& object_name,
-			int invoke_id, int underlyingPortId) = 0;
+			int invoke_id) = 0;
 
 	/// When the FAI gets a Allocate_Response from the destination application,
 	/// it formulates a Create_Response on the flow object requested.If the
@@ -173,11 +176,12 @@ public:
 class FlowAllocator: public IFlowAllocator {
 public:
 	FlowAllocator();
-	~FlowAllocator();
-	void set_ipc_process(IPCProcess * ipc_process);
+	~FlowAllocator() { };
+	IFlowAllocatorInstance * getFAI(int portId);
+	void set_application_process(rina::ApplicationProcess * ap);
 	void set_dif_configuration(const rina::DIFConfiguration& dif_configuration);
 	void createFlowRequestMessageReceived(Flow * flow, const std::string& object_name,
-			int invoke_id, int underlying_port_id);
+			int invoke_id);
 	void submitAllocateRequest(rina::FlowRequestEvent& flowRequestEvent);
 	void processCreateConnectionResponseEvent(
 			const rina::CreateConnectionResponseEvent& event);
@@ -189,14 +193,15 @@ public:
 	void submitDeallocate(const rina::FlowDeallocateRequestEvent& event);
 	void removeFlowAllocatorInstance(int portId);
 
-private:
-	/// Flow allocator instances, each one associated to a port-id
-	rina::ThreadSafeMapOfPointers<int, IFlowAllocatorInstance> flow_allocator_instances_;
+        // Plugin support
+	std::list<rina::QoSCube*> getQoSCubes();
+        Flow * createFlow() { return new Flow(); }
+        void destroyFlow(Flow *flow) { if (flow) delete flow; }
 
-	IPCProcess * ipc_process_;
+private:
 	IPCPRIBDaemon * rib_daemon_;
 	rina::CDAPSessionManagerInterface * cdap_session_manager_;
-	Encoder * encoder_;
+	rina::IMasterEncoder * encoder_;
 	INamespaceManager * namespace_manager_;
 
 	/// Create initial RIB objects
@@ -206,38 +211,8 @@ private:
 	void replyToIPCManager(const rina::FlowRequestEvent& event, int result);
 };
 
-/// This policy is used to convert an Allocate Request is into a create_flow request.
-/// Its primary task is to translate the request into the proper QoS-class-set, flow set,
-/// and access control capabilities.
-class INewFlowRequetPolicy {
-public:
-	virtual ~INewFlowRequetPolicy() {
-	}
-	;
-	virtual Flow * generateFlowObject(IPCProcess * ipc_process,
-			const rina::FlowRequestEvent& flowRequestEvent) = 0;
-};
-
-class SimpleNewFlowRequestPolicy: public INewFlowRequetPolicy {
-public:
-	SimpleNewFlowRequestPolicy() {
-	}
-	;
-	~SimpleNewFlowRequestPolicy() {
-	}
-	;
-	Flow * generateFlowObject(IPCProcess * ipc_process,
-			const rina::FlowRequestEvent& flowRequestEvent);
-
-private:
-	rina::QoSCube * selectQoSCube(IPCProcess * ipc_process,
-			const rina::FlowSpecification& flowSpec);
-	std::list<rina::QoSCube*> getQoSCubes(IPCProcess * ipc_process);
-};
-
 ///Implementation of the FlowAllocatorInstance
-class FlowAllocatorInstance: public IFlowAllocatorInstance,
-		public rina::BaseCDAPResponseMessageHandler {
+class FlowAllocatorInstance: public IFlowAllocatorInstance {
 public:
 	enum FAIState {
 		NO_STATE,
@@ -254,10 +229,12 @@ public:
 	FlowAllocatorInstance(IPCProcess * ipc_process,
 			IFlowAllocator * flow_allocator,
 			rina::CDAPSessionManagerInterface * cdap_session_manager,
-			int port_id);
+			int port_id, const std::string& instance_id);
 	FlowAllocatorInstance(IPCProcess * ipc_process,
-			IFlowAllocator * flow_allocator, int port_id);
+			IFlowAllocator * flow_allocator, int port_id,
+			const std::string& instance_id);
 	~FlowAllocatorInstance();
+	void set_application_entity(rina::ApplicationEntity * ae);
 	int get_port_id() const;
 	Flow * get_flow() const;
 	bool isFinished() const;
@@ -268,7 +245,7 @@ public:
 	void processCreateConnectionResponseEvent(
 			const rina::CreateConnectionResponseEvent& event);
 	void createFlowRequestMessageReceived(Flow * flow, const std::string& object_name,
-			int invoke_id, int underlyingPortId);
+			int invoke_id);
 	void processCreateConnectionResultEvent(
 			const rina::CreateConnectionResultEvent& event);
 	void submitAllocateResponse(const rina::AllocateFlowResponseEvent& event);
@@ -295,14 +272,22 @@ public:
 			void * object_value, rina::CDAPSessionDescriptor * session_descriptor);
 
 private:
+
+  void initialize(IPCProcess * ipc_process, IFlowAllocator * flow_allocator,
+      int port_id);
+  void replyToIPCManager(rina::FlowRequestEvent & event, int result);
+  void releasePortId();
+
+  /// Release the port-id, unlock and remove the FAI from the FA
+  void releaseUnlockRemove();
+
 	IPCProcess * ipc_process_;
 	IFlowAllocator * flow_allocator_;
 	rina::CDAPSessionManagerInterface * cdap_session_manager_;
-	Encoder * encoder_;
+	rina::IMasterEncoder * encoder_;
 	IPCPRIBDaemon * rib_daemon_;
 	INamespaceManager * namespace_manager_;
-	ISecurityManager * security_manager_;
-	INewFlowRequetPolicy * new_flow_request_policy_;
+	IPCPSecurityManager * security_manager_;
 	FAIState state;
 
 	rina::Timer timer;
@@ -321,17 +306,8 @@ private:
 
 	unsigned int allocate_response_message_handle_;
 	int invoke_id_;
-	int underlying_port_id_;
 	rina::Lockable * lock_;
 	rina::Timer * timer_;
-
-	void initialize(IPCProcess * ipc_process, IFlowAllocator * flow_allocator,
-			int port_id);
-	void replyToIPCManager(rina::FlowRequestEvent & event, int result);
-	void releasePortId();
-
-	/// Release the port-id, unlock and remove the FAI from the FA
-	void releaseUnlockRemove();
 };
 
 class TearDownFlowTimerTask: public rina::TimerTask {

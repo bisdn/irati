@@ -28,6 +28,7 @@ struct dtcp;
 struct dt;
 struct cwq;
 struct rtxq;
+struct efcp;
 
 /*
  * FIXME: The DT instance would represent the DTP/DTCP couple. It has to land
@@ -56,8 +57,12 @@ struct cwq *  dt_cwq_unbind(struct dt * dt);
 int           dt_rtxq_bind(struct dt * dt, struct rtxq * rtxq);
 struct rtxq * dt_rtxq_unbind(struct dt * dt);
 
+int           dt_efcp_bind(struct dt * dt, struct efcp * efcp);
+struct efcp * dt_efcp_unbind(struct dt * dt);
+
 struct dtp *  dt_dtp(struct dt * dt);
 struct dtcp * dt_dtcp(struct dt * dt);
+struct efcp * dt_efcp(struct dt * dt);
 
 struct cwq *  dt_cwq(struct dt * dt);
 struct rtxq * dt_rtxq(struct dt * dt);
@@ -74,6 +79,7 @@ timeout_t     dt_sv_a(struct dt * dt);
 bool          dt_sv_window_closed(struct dt * dt);
 int           dt_sv_window_closed_set(struct dt * dt, bool closed);
 timeout_t     dt_sv_tr(struct dt * dt);
+int           dt_sv_tr_set(struct dt * dt, timeout_t tr);
 bool          dt_sv_drf_flag(struct dt * dt);
 void          dt_sv_drf_flag_set(struct dt * dt, bool flag);
 

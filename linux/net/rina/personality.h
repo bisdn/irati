@@ -51,9 +51,11 @@ struct personality_ops {
 
         int (* allocate_port)(struct personality_data * data,
                               ipc_process_id_t          pid,
-                              struct name *             name);
+                              struct name *             name,
+                              bool			blocking);
         int (* deallocate_port)(struct personality_data * data,
-                                port_id_t         pid);
+                                ipc_process_id_t          ipc_id,
+                                port_id_t                 pid);
 
         /* Takes the ownership of the sdu */
         int (* sdu_write)(struct personality_data * data,

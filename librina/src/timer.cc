@@ -21,7 +21,7 @@
 
 #include <cerrno>
 
-#define RINA_PREFIX "timer"
+#define RINA_PREFIX "librina.timer"
 
 #include "librina/logs.h"
 #include "librina/timer.h"
@@ -68,6 +68,16 @@ TaskScheduler::TaskScheduler() :
 		Lockable() {
 }
 TaskScheduler::~TaskScheduler() throw () {
+  for (std::map<Time, std::list<TimerTask*>* >::iterator iter_map = tasks_.begin();
+      iter_map != tasks_.end(); ++iter_map) {
+    for (std::list<TimerTask*>::iterator iter_list = iter_map->second->begin();
+        iter_list != iter_map->second->end(); ++iter_list){
+      delete *iter_list;
+    }
+    iter_map->second->empty();
+    delete iter_map->second;
+  }
+  tasks_.empty();
 }
 void TaskScheduler::insert(Time time, TimerTask* timer_task) {
 	lock();
@@ -98,8 +108,10 @@ void TaskScheduler::runTasks() {
 			try {
 				ThreadAttributes threadAttributes;
 				threadAttributes.setDettached();
-				Thread *t = new Thread(&threadAttributes, &doWorkTask,
-						(void *) (*iter_list));
+				Thread *t = new Thread(&doWorkTask,
+						       (void *) (*iter_list),
+						       &threadAttributes);
+				t->start();
 				delete t;
 				t = 0;
 			} catch (Exception &e) {
@@ -152,7 +164,8 @@ Timer::Timer() {
 	continue_ = true;
 	continue_lock_.unlock();
 	task_scheduler = new TaskScheduler();
-	thread_ = new Thread(&threadAttributes, &doWorkTimer, (void *) this);
+	thread_ = new Thread(&doWorkTimer, (void *) this, &threadAttributes);
+	thread_->start();
 	LOG_DBG("Timer with ID %d started", thread_);
 }
 Timer::~Timer() {

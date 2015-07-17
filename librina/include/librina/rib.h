@@ -25,10 +25,21 @@
 
 #ifdef __cplusplus
 
-#include "common.h"
+#include "application.h"
 #include "cdap.h"
 
 namespace rina {
+
+class RIBNamingConstants {
+public:
+	static const std::string DAF;
+	static const std::string DIF_REGISTRATIONS;
+	static const std::string IRM;
+	static const std::string MANAGEMENT;
+	static const std::string N_MINUS_ONE_FLOWS;
+	static const std::string NEIGHBORS;
+	static const std::string SEPARATOR;
+};
 
 /// Encodes and Decodes an object to/from bytes)
 class EncoderInterface {
@@ -160,80 +171,6 @@ public:
         virtual ~IUpdateStrategy(){};
 };
 
-/// Interface of classes that handle CDAP response message.
-class ICDAPResponseMessageHandler {
-public:
-        virtual ~ICDAPResponseMessageHandler(){};
-        virtual void createResponse(int result, const std::string& result_reason,
-                        void * object_value, rina::CDAPSessionDescriptor * session_descriptor) = 0;
-        virtual void deleteResponse(int result, const std::string& result_reason,
-                        rina::CDAPSessionDescriptor * session_descriptor) = 0;
-        virtual void readResponse(int result, const std::string& result_reason,
-                        void * object_value, const std::string& object_name,
-                        rina::CDAPSessionDescriptor * session_descriptor) = 0;
-        virtual void cancelReadResponse(int result, const std::string& result_reason,
-                        rina::CDAPSessionDescriptor * session_descriptor) = 0;
-        virtual void writeResponse(int result, const std::string& result_reason,
-                        void * object_value, rina::CDAPSessionDescriptor * session_descriptor) = 0;
-        virtual void startResponse(int result, const std::string& result_reason,
-                        void * object_value, rina::CDAPSessionDescriptor * session_descriptor) = 0;
-        virtual void stopResponse(int result, const std::string& result_reason,
-                        void * object_value, rina::CDAPSessionDescriptor * session_descriptor) = 0;
-};
-
-class BaseCDAPResponseMessageHandler: public ICDAPResponseMessageHandler {
-public:
-        virtual void createResponse(int result, const std::string& result_reason,
-                        void * object_value, CDAPSessionDescriptor * session_descriptor) {
-                (void) result; // Stop compiler barfs
-                (void) result_reason; //Stop compiler barfs
-                (void) object_value; //Stop compiler barfs
-                (void) session_descriptor; // Stop compiler barfs
-        }
-        virtual void deleteResponse(int result, const std::string& result_reason,
-                        CDAPSessionDescriptor * session_descriptor) {
-                                (void) result; // Stop compiler barfs
-                                (void) result_reason; //Stop compiler barfs
-                                (void) session_descriptor; // Stop compiler barfs
-        }
-        virtual void readResponse(int result, const std::string& result_reason,
-                        void * object_value, const std::string& object_name,
-                        CDAPSessionDescriptor * session_descriptor) {
-                                (void) result; // Stop compiler barfs
-                                (void) result_reason; //Stop compiler barfs
-                                (void) object_value; //Stop compiler barfs
-                                (void) object_name; //Stop compiler barfs
-                                (void) session_descriptor; // Stop compiler barfs
-        }
-        virtual void cancelReadResponse(int result, const std::string& result_reason,
-                        CDAPSessionDescriptor * cdapSessionDescriptor) {
-                                (void) result; // Stop compiler barfs
-                                (void) result_reason; //Stop compiler barfs
-                (void) cdapSessionDescriptor; // Stop compiler barfs
-        }
-        virtual void writeResponse(int result, const std::string& result_reason,
-                        void * object_value, CDAPSessionDescriptor * session_descriptor) {
-                (void) result; // Stop compiler barfs
-                (void) result_reason; // Stop compiler barfs
-                (void) object_value; // Stop compiler barfs
-                (void) session_descriptor; // Stop compiler barfs
-        }
-        virtual void startResponse(int result, const std::string& result_reason,
-                        void * object_value, CDAPSessionDescriptor * session_descriptor) {
-                                (void) result; // Stop compiler barfs
-                                (void) result_reason; // Stop compiler barfs
-                                (void) object_value; // Stop compiler barfs
-                                (void) session_descriptor; // Stop compiler barfs
-        }
-        virtual void stopResponse(int result, const std::string& result_reason,
-                        void * object_value, CDAPSessionDescriptor * session_descriptor) {
-                                (void) result; // Stop compiler barfs
-                                (void) result_reason; // Stop compiler barfs
-                                (void) object_value; // Stop compiler barfs
-                                (void) session_descriptor; // Stop compiler barfs
-        }
-};
-
 /// Part of the RIB Daemon API to control if the changes have to be notified
 class NotificationPolicy {
 public:
@@ -262,6 +199,7 @@ public:
                 floattype,
                 doubletype,
                 booltype,
+                bytestype
         };
 
         RIBObjectValue();
@@ -274,11 +212,13 @@ public:
         float float_value_;
         std::string string_value_;
         void * complex_value_;
+        SerializedObject bytes_value_;
 };
 
 /// Interface that provides the RIB Daemon API
-class IRIBDaemon {
+class IRIBDaemon : public ApplicationEntity {
 public:
+	IRIBDaemon() : ApplicationEntity(ApplicationEntity::RIB_DAEMON_AE_NAME) { };
         virtual ~IRIBDaemon(){};
 
         /// Add an object to the RIB
@@ -317,12 +257,10 @@ public:
 
         /// Causes a CDAP message to be sent. Takes ownership of the CDAPMessage
         /// @param cdapMessage the message to be sent
-        /// @param sessionId the CDAP session id
         /// @param address the address of the IPC Process to send the Message To
         /// @param cdapMessageHandler the class to be called when the response message is received (if required)
         /// @throws Exception
-        virtual void sendMessageToAddress(const CDAPMessage & cdapMessage,
-                                          int sessionId,
+        virtual void sendAData(const CDAPMessage & cdapMessage,
                                           unsigned int address,
                                           ICDAPResponseMessageHandler * cdapMessageHandler) = 0;
 
@@ -419,8 +357,8 @@ public:
         /// @param src_ap_inst
         /// @param src_ap_name
         /// @param remote_id
-        virtual void openApplicationConnection(rina::CDAPMessage::AuthTypes auth_mech,
-                        const rina::AuthValue &auth_value, const std::string &dest_ae_inst,
+        virtual void openApplicationConnection(
+                        const rina::AuthPolicy &auth_policy, const std::string &dest_ae_inst,
                         const std::string &dest_ae_name, const std::string &dest_ap_inst,
                         const std::string &dest_ap_name, const std::string &src_ae_inst,
                         const std::string &src_ae_name, const std::string &src_ap_inst,
@@ -512,8 +450,8 @@ public:
         /// @param src_ap_name
         /// @param invoke_id
         /// @param remote_id
-        virtual void openApplicationConnectionResponse(rina::CDAPMessage::AuthTypes auth_mech,
-                        const rina::AuthValue &auth_value, const std::string &dest_ae_inst,
+        virtual void openApplicationConnectionResponse(
+                        const rina::AuthPolicy &auth_policy, const std::string &dest_ae_inst,
                         const std::string &dest_ae_name, const std::string &dest_ap_inst, const std::string &dest_ap_name,
                         int result, const std::string &result_reason, const std::string &src_ae_inst,
                         const std::string &src_ae_name, const std::string &src_ap_inst, const std::string &src_ap_name,
@@ -701,35 +639,27 @@ public:
         virtual void* decode(const rina::CDAPMessage * cdapMessage) = 0;
 };
 
-class IApplicationConnectionHandler {
+class IMasterEncoder: public rina::IEncoder {
 public:
-        virtual ~IApplicationConnectionHandler(){};
+	virtual ~IMasterEncoder(){};
+	/// Set the class that serializes/unserializes an object class
+	/// @param objectClass The object class
+	/// @param serializer
 
-        /// A remote IPC process Connect request has been received.
-        /// @param invoke_id the id of the connect message
-        /// @param session_descriptor
-        virtual void connect(int invoke_id,
-                        rina::CDAPSessionDescriptor * session_descriptor) = 0;
+	virtual void addEncoder(const std::string& object_class, rina::EncoderInterface *encoder) = 0;
+	/// Converts an object of the type specified by "className" to a byte array.
+	/// @param object
+	/// @return
 
-        /// A remote IPC process Connect response has been received.
-        /// @param result
-        /// @param result_reason
-        /// @param session_descriptor
-        virtual void connectResponse(int result, const std::string& result_reason,
-                        rina::CDAPSessionDescriptor * session_descriptor) = 0;
+	virtual void encode(const void* object, rina::CDAPMessage * cdapMessage) = 0;
 
-        /// A remote IPC process Release request has been received.
-        /// @param invoke_id the id of the release message
-        /// @param session_descriptor
-        virtual void release(int invoke_id,
-                        rina::CDAPSessionDescriptor * session_descriptor) = 0;
-
-        /// A remote IPC process Release response has been received.
-        /// @param result
-        /// @param result_reason
-        /// @param session_descriptor
-        virtual void releaseResponse(int result, const std::string& result_reason,
-                        rina::CDAPSessionDescriptor * session_descriptor) = 0;
+	/// Converts a byte array to an object of the type specified by "className"
+	/// @param serializedObject
+	/// @param The type of object to be decoded
+	/// @throws exception if the byte array is not an encoded in a way that the encoder can recognize, or the
+	/// byte array value doesn't correspond to an object of the type "className"
+	/// @return
+	virtual void* decode(const rina::CDAPMessage * cdapMessage) = 0;
 };
 
 // /A RIB Daemon partial implementation, that internally uses the RIB
@@ -740,7 +670,7 @@ public:
         RIBDaemon();
         void initialize(const std::string& separator, IEncoder * encoder,
                         CDAPSessionManagerInterface * cdap_session_manager_,
-                        IApplicationConnectionHandler * app_conn_handler_);
+                        CACEPHandler * cacep_handler_);
         void addRIBObject(BaseRIBObject * ribObject);
         void removeRIBObject(BaseRIBObject * ribObject);
         void removeRIBObject(const std::string& objectName);
@@ -757,16 +687,15 @@ public:
                         const void* objectValue);
         void stopObject(const std::string& objectClass, const std::string& objectName,
                                 const void* objectValue);
-        void cdapMessageDelivered(char* message, int length, int portId);
         void sendMessage(const CDAPMessage & cdapMessage, int sessionId,
                                 ICDAPResponseMessageHandler * cdapMessageHandler);
-        void sendMessageToAddress(const CDAPMessage & cdapMessage, int sessionId,
-                        unsigned int address, ICDAPResponseMessageHandler * cdapMessageHandler);
+        void sendAData(const CDAPMessage & cdapMessage, unsigned int address,
+        		ICDAPResponseMessageHandler * cdapMessageHandler);
         void sendMessages(const std::list<const CDAPMessage*>& cdapMessages,
                                 const IUpdateStrategy& updateStrategy);
 
-        void openApplicationConnection(CDAPMessage::AuthTypes auth_mech,
-                                const AuthValue &auth_value, const std::string &dest_ae_inst,
+        void openApplicationConnection(
+                                const AuthPolicy &auth_policy, const std::string &dest_ae_inst,
                                 const std::string &dest_ae_name, const std::string &dest_ap_inst,
                                 const std::string &dest_ap_name, const std::string &src_ae_inst,
                                 const std::string &src_ae_name, const std::string &src_ap_inst,
@@ -791,8 +720,8 @@ public:
         void remoteStopObject(const std::string& object_class, const std::string& object_name,
                                 RIBObjectValue& object_value, int scope, const RemoteProcessId& remote_id,
                                 ICDAPResponseMessageHandler * response_handler);
-        void openApplicationConnectionResponse(rina::CDAPMessage::AuthTypes auth_mech,
-                                const rina::AuthValue &auth_value, const std::string &dest_ae_inst,
+        void openApplicationConnectionResponse(
+                                const rina::AuthPolicy &auth_policy, const std::string &dest_ae_inst,
                                 const std::string &dest_ae_name, const std::string &dest_ap_inst, const std::string &dest_ap_name,
                                 int result, const std::string &result_reason, const std::string &src_ae_inst,
                                 const std::string &src_ae_name, const std::string &src_ap_inst, const std::string &src_ap_name,
@@ -828,18 +757,43 @@ public:
         virtual void sendMessageSpecific(bool useAddress, const rina::CDAPMessage & cdapMessage, int sessionId,
                         unsigned int address, ICDAPResponseMessageHandler * cdapMessageHandler) = 0;
 
-        /// Lock to control that when sending a message requiring a reply the
-        /// CDAP Session manager has been updated before receiving the response message
-        rina::Lockable atomic_send_lock_;
+        void processIncomingCDAPMessage(const rina::CDAPMessage * cdapMessage,
+        				rina::CDAPSessionDescriptor * descriptor,
+        				const std::string& session_state);
+
+        void encodeObject(RIBObjectValue& object_value, rina::CDAPMessage * message);
 
         /// CDAP Message handlers that have sent a CDAP message and are waiting for a reply
         ThreadSafeMapOfPointers<int, ICDAPResponseMessageHandler> handlers_waiting_for_reply_;
 
+        CDAPSessionManagerInterface * cdap_session_manager_;
+
+protected:
+	void remote_operation_on_object(rina::CDAPMessage::Opcode opcode,
+			const std::string& object_class, const std::string& object_name,
+			int scope, const RemoteProcessId& remote_id,
+			ICDAPResponseMessageHandler * response_handler);
+
+	void remote_operation_on_object_with_value(rina::CDAPMessage::Opcode opcode,
+			const std::string& object_class, const std::string& object_name,
+			RIBObjectValue& object_value, int scope,
+			const RemoteProcessId& remote_id,
+			ICDAPResponseMessageHandler * response_handler);
+
+	void remote_operation_response_with_value(rina::CDAPMessage::Opcode opcode,
+			const std::string& object_class, const std::string& object_name,
+			RIBObjectValue& object_value, int result, const std::string result_reason,
+			int invoke_id, const RemoteProcessId& remote_id, rina::CDAPMessage::Flags flags);
+
+	void remote_operation_response(rina::CDAPMessage::Opcode opcode,
+			const std::string& object_class, const std::string& object_name,
+			int result, const std::string result_reason,
+			int invoke_id, const RemoteProcessId& remote_id);
+
 private:
         RIB rib_;
-        CDAPSessionManagerInterface * cdap_session_manager_;
         IEncoder * encoder_;
-        IApplicationConnectionHandler * app_conn_handler_;
+        CACEPHandler * cacep_handler_;
         std::string separator_;
 
         //Get a CDAP Message Handler waiting for a response message
@@ -859,11 +813,36 @@ private:
         /// @return true if candidate is on list, false otherwise
         bool isOnList(int candidate, std::list<int> list);
 
-        void encodeObject(RIBObjectValue& object_value, rina::CDAPMessage * message);
-
         void sendMessageToProcess(const rina::CDAPMessage & cdapMessage, const RemoteProcessId& remote_id,
                         ICDAPResponseMessageHandler * response_handler);
 
+        void assign_invoke_id_if_needed(CDAPMessage * message, bool invoke_id);
+};
+
+///Object exchanged between applications processes that
+///contains the source and destination addresses of the processes
+///and optional authentication information, as well as an
+///encoded CDAP Message. It is used to exchange CDAP messages
+///between APs without having a CDAP session previously established
+///(it can be seen as a one message session)
+class ADataObject {
+public:
+	static const std::string A_DATA;
+	static const std::string A_DATA_OBJECT_CLASS;
+	static const std::string A_DATA_OBJECT_NAME;
+
+	ADataObject();
+	ADataObject(unsigned int source_address,
+			unsigned int dest_address);
+	~ADataObject();
+
+	//The address of the source AP (or IPCP)
+	unsigned int source_address_;
+
+	//The address of the destination AP (or IPCP)
+	unsigned int dest_address_;
+
+	const SerializedObject * encoded_cdap_message_;
 };
 
 

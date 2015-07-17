@@ -30,17 +30,17 @@
 using namespace rina;
 
 bool checkAllocatedFlows(unsigned int expectedFlows) {
-        std::vector<Flow *> allocatedFlows = ipcManager->getAllocatedFlows();
+        std::vector<FlowInformation> allocatedFlows = ipcManager->getAllocatedFlows();
         if (allocatedFlows.size() != expectedFlows) {
                 std::cout << "ERROR: Expected " << expectedFlows
-                                << " allocated flows, but only found " + allocatedFlows.size()
+                                << " allocated flows, but only found " << allocatedFlows.size()
                                 << "\n";
                 return false;
         }
 
         std::cout << "Port-ids of allocated flows:";
         for (unsigned int i = 0; i < allocatedFlows.size(); i++) {
-                std::cout << " " << allocatedFlows.at(i)->getPortId() << ",";
+                std::cout << " " << allocatedFlows.at(i).portId << ",";
         }
         std::cout << "\n";
 
@@ -53,7 +53,7 @@ bool checkRegisteredApplications(unsigned int expectedApps) {
         if (registeredApplications.size() != expectedApps) {
                 std::cout << "ERROR: Expected " << expectedApps
                                 << " registered applications, but only found "
-                                                + registeredApplications.size() << "²n";
+                                                << registeredApplications.size() << "²n";
                 return false;
         }
 
@@ -77,38 +77,35 @@ bool checkRegisteredApplications(unsigned int expectedApps) {
 
 int main() {
 	std::cout << "TESTING LIBRINA-APPLICATION\n";
-	ApplicationProcessNamingInformation sourceName =
-			ApplicationProcessNamingInformation("/apps/test/source", "1");
-	ApplicationProcessNamingInformation destinationName =
-			ApplicationProcessNamingInformation("/apps/test/destination",
+	ApplicationProcessNamingInformation sourceName("/apps/test/source", "1");
+	ApplicationProcessNamingInformation destinationName("/apps/test/destination",
 					"1");
 	FlowSpecification flowSpecification;
-	ApplicationProcessNamingInformation difName =
-	                ApplicationProcessNamingInformation("test.DIF", "");
+	ApplicationProcessNamingInformation difName("test.DIF", "");
 
 	/* TEST ALLOCATE REQUEST */
 	unsigned int seqNumber = ipcManager->requestFlowAllocation(
 	                sourceName, destinationName, flowSpecification);
 
-	Flow * flow = ipcManager->commitPendingFlow(seqNumber, 23, difName);
-	std::cout << "Flow allocated, portId is " << flow->getPortId()
-			<< "; DIF name is: " << flow->getDIFName().processName
-			<< "\n";
+	FlowInformation flow = ipcManager->commitPendingFlow(seqNumber, 23, difName);
+	std::cout << "Flow allocated, portId is " << flow.portId
+			<< "; DIF name is: " << flow.difName.processName
+			<< "; state is: "<<flow.state << "\n";
 
 	/* TEST WRITE SDU */
 	unsigned char sdu[] = { 45, 34, 2, 36, 8 };
-	flow->writeSDU(sdu, 5);
+	ipcManager->writeSDU(flow.portId, sdu, 5);
 
 	/* TEST ALLOCATE RESPONSE */
 	FlowRequestEvent flowRequestEvent = FlowRequestEvent(25, flowSpecification,
 			true, sourceName, destinationName, difName, 23, 234);
-	Flow * flow2 = ipcManager->allocateFlowResponse(flowRequestEvent, 0, true);
-	std::cout << "Accepted flow allocation, portId is " << flow2->getPortId()
-			<< "; DIF name is: " << flow2->getDIFName().processName
-			<< "\n";
+	FlowInformation flow2 = ipcManager->allocateFlowResponse(flowRequestEvent, 0, true);
+	std::cout << "Accepted flow allocation, portId is " << flow2.portId
+			<< "; DIF name is: " << flow2.difName.processName
+			<< "; state is: " << flow2.state << "\n";
 
 	/* TEST READ SDU */
-	int bytesRead = flow2->readSDU((void*)sdu, 7);
+	int bytesRead = ipcManager->readSDU(flow2.portId, (void*)sdu, 5);
 	std::cout << "Read an SDU of " << bytesRead << " bytes. Contents: \n";
 	for (int i = 0; i < bytesRead; i++) {
 		std::cout << "SDU[" << i << "]: " << sdu[i] << "\n";
@@ -118,24 +115,14 @@ int main() {
 	if (!checkAllocatedFlows(2)) {
 		return 1;
 	}
-
 	/* TEST DEALLOCATE FLOW */
-	ipcManager->requestFlowDeallocation(flow->getPortId());
-	if (flow->getState() != FLOW_DEALLOCATION_REQUESTED) {
-	        std::cout<<"Requested flow deallocation, but flow is in wrong state";
-	        return -1;
-	}
-	ipcManager->flowDeallocationResult(flow->getPortId(), true);
+	ipcManager->requestFlowDeallocation(flow.portId);
+	ipcManager->flowDeallocationResult(flow.portId, true);
 	if (!checkAllocatedFlows(1)) {
 		return 1;
 	}
-
-	ipcManager->requestFlowDeallocation(flow2->getPortId());
-	if (flow2->getState() != FLOW_DEALLOCATION_REQUESTED) {
-	        std::cout<<"Requested flow deallocation, but flow is in wrong state";
-	        return -1;
-	}
-	ipcManager->flowDeallocationResult(flow2->getPortId(), true);
+	ipcManager->requestFlowDeallocation(flow2.portId);
+	ipcManager->flowDeallocationResult(flow2.portId, true);
 	if (!checkAllocatedFlows(0)) {
 		return -1;
 	}
@@ -145,7 +132,6 @@ int main() {
 	} catch (IPCException &e) {
 		std::cout << "Caught expected exception: " << e.what() << "\n";
 	}
-
 	/* TEST REGISTER APPLICATION */
 	ApplicationRegistrationInformation info =
 			 ApplicationRegistrationInformation(
@@ -157,7 +143,6 @@ int main() {
 	if (!checkRegisteredApplications(1)) {
 	        return -1;
 	}
-
 	/* TEST UNREGISTER APPLICATION */
 	seqNumber = ipcManager->requestApplicationUnregistration(sourceName, difName);
 	ipcManager->appUnregistrationResult(seqNumber, true);

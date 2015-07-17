@@ -59,6 +59,13 @@ struct conn_policies * conn_policies_create(void)
                 return NULL;
         }
 
+        tmp->dtp_ps = policy_create();
+        if (!tmp->dtp_ps) {
+                dtcp_config_destroy(tmp->dtcp_cfg);
+                rkfree(tmp);
+                return NULL;
+        }
+
         tmp->initial_sequence_number = policy_create();
         if (!tmp->initial_sequence_number) {
                 LOG_ERR("Could not create initial_sequence_number");
@@ -112,6 +119,10 @@ int conn_policies_destroy(struct conn_policies * cp_params)
                 if (dtcp_config_destroy(cp_params->dtcp_cfg))
                         retval = -1;
 
+        if (cp_params->dtp_ps)
+                if (policy_destroy(cp_params->dtp_ps))
+                        retval = -1;
+
         if (cp_params->initial_sequence_number)
                 if (policy_destroy(cp_params->initial_sequence_number))
                         retval = -1;
@@ -134,7 +145,9 @@ int connection_destroy(struct connection * conn)
         if (!conn)
                 return -1;
 
-        /* FIXME Here we should make sure that all the asynchronous users
+        /* FIXME: The following FIXME should be now obsolete */
+
+        /* FIXME: Here we should make sure that all the asynchronous users
          * of this connection (e.g. workqueues in the normal ipcp
          * implementation) are stopped before proceeding to destroy the
          * connection object. Setting the pointer to NULL is a workaround
@@ -145,7 +158,7 @@ int connection_destroy(struct connection * conn)
         if (conn->policies_params) {
                 if (conn_policies_destroy(conn->policies_params))
                         return -1;
-                conn->policies_params = NULL;
+                conn->policies_params = NULL; /* FIXME: Workaround */
         }
 
         rkfree(conn);

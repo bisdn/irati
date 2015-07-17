@@ -2,6 +2,8 @@
  * CDAP
  *
  *    Francesco Salvestrini <f.salvestrini@nextworks.it>
+ *    Bernat Gast—n <bernat.gaston@i2cat.net>
+ *    Eduard Grasa <eduard.grasa@i2cat.net>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -30,26 +32,23 @@
 
 namespace rina {
 
-/// Encapsulates the data of an AuthValue
-class AuthValue {
+class CDAPErrorCodes {
 public:
-	AuthValue();
-	AuthValue(const std::string &auth_name, const std::string &auth_password,
-			const std::string &auth_other);
-#ifndef SWIG
-	const std::string get_auth_name() const;
-	const std::string get_auth_password() const;
-	const std::string get_auth_other() const;
-#endif
-	bool is_empty() const;
+	static const int CONNECTION_REJECTED_ERROR;
+};
+
+/// Encapsulates the data of an AuthValue
+class AuthPolicy {
+public:
+	AuthPolicy() { };
 	std::string to_string() const;
 
-	/// Authentication name
-	std::string auth_name_;
-	/// Authentication password
-	std::string auth_password_;
-	/// Additional authentication information
-	std::string auth_other_;
+	/// Authentication policy name
+	std::string name_;
+	/// Supported versions of the policy
+	std::list<std::string> versions_;
+	/// Policy specific information, encoded as a byte array
+	SerializedObject options_;
 };
 
 /// Encapsulates the data to set an object value
@@ -199,8 +198,6 @@ public:
 	static void validate(const CDAPMessage *message);
 private:
 	static void validateAbsSyntax(const CDAPMessage *message);
-	static void validateAuthMech(const CDAPMessage *message);
-	static void validateAuthValue(const CDAPMessage *message);
 	static void validateDestAEInst(const CDAPMessage *message);
 	static void validateDestAEName(const CDAPMessage *message);
 	static void validateDestApInst(const CDAPMessage *message);
@@ -265,29 +262,20 @@ public:
 		M_STOP_R,
 		NONE_OPCODE
 	};
-	enum AuthTypes {
-		AUTH_NONE, AUTH_PASSWD, AUTH_SSHRSA, AUTH_SSHDSA
-	};
 	enum Flags {
 		NONE_FLAGS, F_SYNC, F_RD_INCOMPLETE
 	};
 	CDAPMessage();
-	/*CDAPMessage(int abs_syntax, AuthTypes auth_mech, const AuthValue *auth_value, const std::string *dest_ae_inst,
-	 const std::string *dest_ae_name, const std::string *dest_ap_inst, const std::string *dest_ap_name, const char* filter,
-	 Flags flags, const int invoke_id, const std::string *obj_class, const long obj_inst, const std::string *obj_name,
-	 const ObjectValueInterface *obj_value, const Opcode *op_code, int result, const std::string *result_reason,
-	 int scope, const std::string *src_ae_inst, const std::string *src_ae_name, const std::string *src_ap_inst,
-	 const std::string *src_ap_name, long version);*/
 	~CDAPMessage();
 	static CDAPMessage* getOpenConnectionRequestMessage(
-			AuthTypes auth_mech, const AuthValue &auth_value,
+			const AuthPolicy& auth_policy,
 			const std::string &dest_ae_inst, const std::string &dest_ae_name,
 			const std::string &dest_ap_inst, const std::string &dest_ap_name,
 			const std::string &src_ae_inst, const std::string &src_ae_name,
 			const std::string &src_ap_inst, const std::string &src_ap_name,
 			int invoke_id);
 	static CDAPMessage* getOpenConnectionResponseMessage(
-			AuthTypes auth_mech, const AuthValue &auth_value,
+			const AuthPolicy& auth_policy,
 			const std::string &dest_ae_inst, const std::string &dest_ae_name,
 			const std::string &dest_ap_inst, const std::string &dest_ap_name,
 			int result, const std::string &result_reason,
@@ -343,7 +331,15 @@ public:
 			int invoke_id);
 	static CDAPMessage* getCancelReadResponseMessage(Flags flags,
 			int invoke_id, int result, const std::string &result_reason);
+	static CDAPMessage* getRequestMessage(Opcode opcode, char * filter, Flags flags,
+			const std::string &obj_class, long obj_inst,
+			const std::string &obj_name, int scope);
+	static CDAPMessage* getResponseMessage(Opcode opcode, Flags flags,
+			const std::string &obj_class, long obj_inst,
+			const std::string &obj_name, int result,
+			const std::string &result_reason, int invoke_id);
 	std::string to_string() const;
+	bool is_request_message() const;
 	/// Returns a reply message from the request message, copying all the fields except for: Opcode (it will be the
 	/// request message counterpart), result (it will be 0) and result_reason (it will be null)
 	/// @param requestMessage
@@ -353,10 +349,8 @@ public:
 	CDAPMessage getReplyMessage();
 	int get_abs_syntax() const;
 	void set_abs_syntax(int abs_syntax);
-	AuthTypes get_auth_mech() const;
-	void set_auth_mech(AuthTypes auth_mech);
-	const AuthValue& get_auth_value() const;
-	void set_auth_value(const AuthValue &auth_value);
+	const AuthPolicy& get_auth_policy() const;
+	void set_auth_policy(const AuthPolicy& auth_policy);
 	const std::string& get_dest_ae_inst() const;
 	void set_dest_ae_inst(const std::string &dest_ae_inst);
 	const std::string& get_dest_ae_name() const;
@@ -403,14 +397,8 @@ public:
 	/// AbstractSyntaxID (int32), mandatory. The specific version of the
 	/// CDAP protocol message declarations that the message conforms to
 	int abs_syntax_;
-	/// AuthenticationMechanismName (authtypes), optional, not validated by CDAP.
-	/// Identification of the method to be used by the destination application to
-	/// authenticate the source application
-	AuthTypes auth_mech_;
-	/// AuthenticationValue (authvalue), optional, not validated by CDAP.
-	/// Authentication information accompanying auth_mech, format and value
-	/// appropiate to the selected auth_mech
-	AuthValue auth_value_;
+	/// Authentication policy parameters
+	AuthPolicy auth_policy_;
 	/// DestinationApplication-Entity-Instance-Id (string), optional, not validated by CDAP.
 	/// Specific instance of the Application Entity that the source application
 	/// wishes to connect to in the destination application.
@@ -500,17 +488,15 @@ class CDAPSessionDescriptor {
 public:
 	CDAPSessionDescriptor();
 	CDAPSessionDescriptor(int port_id);
-	CDAPSessionDescriptor(int abs_syntax, CDAPMessage::AuthTypes auth_mech,
-			AuthValue auth_value);
-	~CDAPSessionDescriptor();
+	CDAPSessionDescriptor(int abs_syntax, const AuthPolicy& auth_policy);
+	virtual ~CDAPSessionDescriptor();
 	/// The source naming information is always the naming information of the local Application process
 	const ApplicationProcessNamingInformation get_source_application_process_naming_info();
 	/// The destination naming information is always the naming information of the remote application process
 	const ApplicationProcessNamingInformation get_destination_application_process_naming_info();
 #ifndef SWIG
 	void set_abs_syntax(const int abs_syntax);
-	void set_auth_mech(const CDAPMessage::AuthTypes auth_mech);
-	void set_auth_value(const AuthValue set_auth_value);
+	void set_auth_policy(const AuthPolicy& auth_policy);
 	void set_dest_ae_inst(const std::string *dest_ae_inst);
 	void set_dest_ae_name(const std::string *dest_ae_name);
 	void set_dest_ap_inst(const std::string *dest_ap_inst);
@@ -531,16 +517,8 @@ public:
 	/// CDAP protocol message declarations that the message conforms to
 	///
 	int abs_syntax_;
-	/// AuthenticationMechanismName (authtypes), optional, not validated by CDAP.
-	/// Identification of the method to be used by the destination application to
-	/// authenticate the source application
-	CDAPMessage::AuthTypes auth_mech_;
-	/**
-	 * AuthenticationValue (authvalue), optional, not validated by CDAP.
-	 * Authentication information accompanying auth_mech, format and value
-	 * appropiate to the selected auth_mech
-	 */
-	AuthValue auth_value_;
+	/// Authenticatio Policy information
+	AuthPolicy auth_policy_;
 	/// DestinationApplication-Entity-Instance-Id (string), optional, not validated by CDAP.
 	/// Specific instance of the Application Entity that the source application
 	/// wishes to connect to in the destination application.
@@ -611,9 +589,12 @@ public:
 ///     a) call the messageReceived operation
 ///     b) if successful, you can already use the cdap message; if not, look at the exception
 class CDAPSessionInterface {
-
-	/*	Constructors and Destructors	*/
 public:
+	static const std::string SESSION_STATE_NONE;
+	static const std::string SESSION_STATE_AWAIT_CON;
+	static const std::string SESSION_STATE_CON;
+	static const std::string SESSION_STATE_AWAIT_CLOSE;
+
 	virtual ~CDAPSessionInterface() throw () {
 	}
 	;
@@ -651,6 +632,11 @@ public:
 	///Return the descriptor of this session
 	virtual CDAPSessionDescriptor* get_session_descriptor() const = 0;
 
+	//Return the state of this session (NONE, AWAIT_CON, CON or AWAIT_CLOSE)
+	virtual std::string get_session_state() const = 0;
+
+	/// True if this CDAP session is closed, false otherwise
+	virtual bool is_closed() const = 0;
 };
 
 /// Manages the creation/deletion of CDAP sessions within an IPC process
@@ -685,8 +671,10 @@ public:
 	/// @param port_id
 	/// @return encoded version of the CDAP Message
 	/// @throws CDAPException
-	virtual void messageSent(const CDAPMessage &cdap_message, int port_id)
-	= 0;
+	virtual void messageSent(const CDAPMessage &cdap_message, int port_id) = 0;
+	/// Called by the CDAPSession state machine when the cdap session is terminated
+	/// @param port_id
+	virtual void removeCDAPSession(int port_id) = 0;
 	/// Get a CDAP session that matches the port_id
 	/// @param port_id
 	/// @return
@@ -694,9 +682,7 @@ public:
 	/// Get the identifiers of all the CDAP sessions
 	/// @return
 	virtual void getAllCDAPSessionIds(std::vector<int> &vector) = 0;
-	/// Called by the CDAPSession state machine when the cdap session is terminated
-	/// @param port_id
-	virtual void removeCDAPSession(int port_id) = 0;
+
 	/// Encodes a CDAP message. It just converts a CDAP message into a byte
 	/// array, without caring about what session this CDAP message belongs to (and
 	/// therefore it doesn't update any CDAP session state machine). Called by
@@ -739,7 +725,7 @@ public:
 	/// @return
 	/// @throws CDAPException
 	virtual CDAPMessage* getOpenConnectionRequestMessage(int port_id,
-			CDAPMessage::AuthTypes auth_mech, const AuthValue &auth_value,
+			const AuthPolicy& auth_policy,
 			const std::string &dest_ae_inst, const std::string &dest_ae_name,
 			const std::string &dest_ap_inst, const std::string &dest_ap_name,
 			const std::string &src_ae_inst, const std::string &src_ae_name,
@@ -762,7 +748,7 @@ public:
 	/// @return
 	/// @throws CDAPException
 	virtual CDAPMessage* getOpenConnectionResponseMessage(
-			CDAPMessage::AuthTypes auth_mech, const AuthValue &auth_value,
+			const AuthPolicy& auth_policy,
 			const std::string &dest_ae_inst, const std::string &dest_ae_name,
 			const std::string &dest_ap_inst, const std::string &dest_ap_name,
 			int result, const std::string &result_reason,
@@ -1004,6 +990,20 @@ public:
 	virtual CDAPMessage* getCancelReadResponseMessage(
 			CDAPMessage::Flags flags, int invoke_id, int result,
 			const std::string &result_reason) = 0;
+
+	virtual CDAPMessage* getRequestMessage(int port_id,
+			CDAPMessage::Opcode opcode, char * filter,
+			CDAPMessage::Flags flags, const std::string &obj_class,
+			long obj_inst, const std::string &obj_name,
+			int scope, bool invoke_id) = 0;
+
+	virtual CDAPMessage* getResponseMessage(CDAPMessage::Opcode opcode,
+			CDAPMessage::Flags flags, const std::string &obj_class,
+			long obj_inst, const std::string &obj_name,
+			int result,
+			const std::string &result_reason, int invoke_id) = 0;
+
+	virtual CDAPInvokeIdManagerInterface * get_invoke_id_manager() = 0;
 };
 
 /// Provides a wire format for CDAP messages
@@ -1036,6 +1036,116 @@ public:
 			WireMessageProviderFactory *wire_message_provider_factory,
 			long timeout);
 };
+
+class CACEPHandler {
+public:
+        virtual ~CACEPHandler(){};
+
+        /// A remote IPC process Connect request has been received.
+        /// @param invoke_id the id of the connect message
+        /// @param session_descriptor
+        virtual void connect(const CDAPMessage& cdap_message,
+                        rina::CDAPSessionDescriptor * session_descriptor) = 0;
+
+        /// A remote IPC process Connect response has been received.
+        /// @param result
+        /// @param result_reason
+        /// @param session_descriptor
+        virtual void connectResponse(int result, const std::string& result_reason,
+                        rina::CDAPSessionDescriptor * session_descriptor) = 0;
+
+        /// A remote IPC process Release request has been received.
+        /// @param invoke_id the id of the release message
+        /// @param session_descriptor
+        virtual void release(int invoke_id,
+                        rina::CDAPSessionDescriptor * session_descriptor) = 0;
+
+        /// A remote IPC process Release response has been received.
+        /// @param result
+        /// @param result_reason
+        /// @param session_descriptor
+        virtual void releaseResponse(int result, const std::string& result_reason,
+                        rina::CDAPSessionDescriptor * session_descriptor) = 0;
+
+        /// Process an authentication message
+        virtual void process_authentication_message(const CDAPMessage& message,
+        		rina::CDAPSessionDescriptor * session_descriptor) = 0;
+};
+
+/// Interface of classes that handle CDAP response message.
+class ICDAPResponseMessageHandler {
+public:
+        virtual ~ICDAPResponseMessageHandler(){};
+        virtual void createResponse(int result, const std::string& result_reason,
+                        void * object_value, rina::CDAPSessionDescriptor * session_descriptor) = 0;
+        virtual void deleteResponse(int result, const std::string& result_reason,
+                        rina::CDAPSessionDescriptor * session_descriptor) = 0;
+        virtual void readResponse(int result, const std::string& result_reason,
+                        void * object_value, const std::string& object_name,
+                        rina::CDAPSessionDescriptor * session_descriptor) = 0;
+        virtual void cancelReadResponse(int result, const std::string& result_reason,
+                        rina::CDAPSessionDescriptor * session_descriptor) = 0;
+        virtual void writeResponse(int result, const std::string& result_reason,
+                        void * object_value, rina::CDAPSessionDescriptor * session_descriptor) = 0;
+        virtual void startResponse(int result, const std::string& result_reason,
+                        void * object_value, rina::CDAPSessionDescriptor * session_descriptor) = 0;
+        virtual void stopResponse(int result, const std::string& result_reason,
+                        void * object_value, rina::CDAPSessionDescriptor * session_descriptor) = 0;
+};
+
+class BaseCDAPResponseMessageHandler: public ICDAPResponseMessageHandler {
+public:
+        virtual void createResponse(int result, const std::string& result_reason,
+                        void * object_value, CDAPSessionDescriptor * session_descriptor) {
+                (void) result; // Stop compiler barfs
+                (void) result_reason; //Stop compiler barfs
+                (void) object_value; //Stop compiler barfs
+                (void) session_descriptor; // Stop compiler barfs
+        }
+        virtual void deleteResponse(int result, const std::string& result_reason,
+                        CDAPSessionDescriptor * session_descriptor) {
+                                (void) result; // Stop compiler barfs
+                                (void) result_reason; //Stop compiler barfs
+                                (void) session_descriptor; // Stop compiler barfs
+        }
+        virtual void readResponse(int result, const std::string& result_reason,
+                        void * object_value, const std::string& object_name,
+                        CDAPSessionDescriptor * session_descriptor) {
+                                (void) result; // Stop compiler barfs
+                                (void) result_reason; //Stop compiler barfs
+                                (void) object_value; //Stop compiler barfs
+                                (void) object_name; //Stop compiler barfs
+                                (void) session_descriptor; // Stop compiler barfs
+        }
+        virtual void cancelReadResponse(int result, const std::string& result_reason,
+                        CDAPSessionDescriptor * cdapSessionDescriptor) {
+                                (void) result; // Stop compiler barfs
+                                (void) result_reason; //Stop compiler barfs
+                (void) cdapSessionDescriptor; // Stop compiler barfs
+        }
+        virtual void writeResponse(int result, const std::string& result_reason,
+                        void * object_value, CDAPSessionDescriptor * session_descriptor) {
+                (void) result; // Stop compiler barfs
+                (void) result_reason; // Stop compiler barfs
+                (void) object_value; // Stop compiler barfs
+                (void) session_descriptor; // Stop compiler barfs
+        }
+        virtual void startResponse(int result, const std::string& result_reason,
+                        void * object_value, CDAPSessionDescriptor * session_descriptor) {
+                                (void) result; // Stop compiler barfs
+                                (void) result_reason; // Stop compiler barfs
+                                (void) object_value; // Stop compiler barfs
+                                (void) session_descriptor; // Stop compiler barfs
+        }
+        virtual void stopResponse(int result, const std::string& result_reason,
+                        void * object_value, CDAPSessionDescriptor * session_descriptor) {
+                                (void) result; // Stop compiler barfs
+                                (void) result_reason; // Stop compiler barfs
+                                (void) object_value; // Stop compiler barfs
+                                (void) session_descriptor; // Stop compiler barfs
+        }
+};
+
 }
 
 #endif

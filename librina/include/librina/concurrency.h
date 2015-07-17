@@ -119,10 +119,11 @@ private:
 class Thread : public NonCopyable {
 public:
         /** Calls pthreads.create to create a new thread */
-        Thread(ThreadAttributes * threadAttributes,
-               void *(* startFunction)(void *), void * arg);
+        Thread(void *(* startFunction)(void *), void * arg,
+               ThreadAttributes * threadAttributes);
         virtual ~Thread() throw();
 
+        void start();
         pthread_t getThreadType() const;
         void join(void ** status);
         void detach();
@@ -136,6 +137,20 @@ public:
 private:
         Thread(pthread_t thread_id_);
         pthread_t thread_id_;
+        void *(*start_function)(void *);
+        void * start_arg;
+        ThreadAttributes * thread_attrs;
+};
+
+/// A Simple thread that performs all its work in the run method
+class SimpleThread : public Thread {
+public:
+	SimpleThread(ThreadAttributes * threadAttributes);
+	virtual ~SimpleThread() throw();
+	///Subclasses must override this method in order for the
+	///to do something useful
+	///@return 0 if everything is ok, -1 otherwise
+	virtual int run() = 0;
 };
 
 /**
@@ -176,13 +191,16 @@ private:
         pthread_rwlockattr_t rwlock_attr_;
 };
 
-class AccessGuard {
+/**
+* Scoped lock (RAI)
+*/
+class ScopedLock {
 public:
-AccessGuard(Lockable & guarded) :
+ScopedLock(Lockable & guarded, bool lock=true) :
         guarded_(guarded)
-        { guarded_.lock(); }
+        { if(lock) guarded_.lock(); }
 
-        virtual ~AccessGuard() throw() {
+        virtual ~ScopedLock() throw() {
                 try {
                         guarded_.unlock();
                 } catch (std::exception & e) {
@@ -192,6 +210,47 @@ AccessGuard(Lockable & guarded) :
 private:
         Lockable & guarded_;
 };
+
+/**
+* Read scoped lock (RAII)
+*/
+class ReadScopedLock {
+public:
+ReadScopedLock(ReadWriteLockable & rwlock, bool lock=true) :
+        rwlock_(rwlock)
+        { if(lock) rwlock_.readlock(); }
+
+        virtual ~ReadScopedLock() throw() {
+                try {
+                        rwlock_.unlock();
+                } catch (std::exception & e) {
+                }
+        }
+
+private:
+	ReadWriteLockable& rwlock_;
+};
+
+/**
+* Write scoped lock (RAII)
+*/
+class WriteScopedLock {
+public:
+WriteScopedLock(ReadWriteLockable & rwlock, bool lock=true) :
+        rwlock_(rwlock)
+        { if(lock) rwlock_.writelock(); }
+
+        virtual ~WriteScopedLock() throw() {
+                try {
+                        rwlock_.unlock();
+                } catch (std::exception & e) {
+                }
+        }
+
+private:
+	ReadWriteLockable& rwlock_;
+};
+
 
 /**
  * Wraps a Condition Variable as provided by the pthreads library
@@ -279,6 +338,8 @@ BlockingFIFOQueue():ConditionVariable() { };
                         queue.pop_front();
                 }
 
+                unlock();
+
                 return result;
         }
 
@@ -329,7 +390,7 @@ public:
         /// @param key
         /// @param value
         void put(K key, T* element) {
-                rina::AccessGuard g(*lock_);
+                rina::ScopedLock g(*lock_);
                 map[key] = element;
         }
 
@@ -341,7 +402,7 @@ public:
                 typename std::map<K, T*>::iterator iterator;
                 T* result;
 
-                rina::AccessGuard g(*lock_);
+                rina::ScopedLock g(*lock_);
                 iterator = map.find(key);
                 if (iterator == map.end()) {
                         result = 0;
@@ -360,7 +421,7 @@ public:
                 typename std::map<K, T*>::iterator iterator;
                 T* result;
 
-                rina::AccessGuard g(*lock_);
+                rina::ScopedLock g(*lock_);
                 iterator = map.find(key);
                 if (iterator == map.end()) {
                         result = 0;
@@ -377,7 +438,7 @@ public:
                 typename std::map<K, T*>::const_iterator iterator;
                 std::list<T*> result;
 
-                rina::AccessGuard g(*lock_);
+                rina::ScopedLock g(*lock_);
                 for(iterator = map.begin();
                                 iterator != map.end(); ++iterator){
                         result.push_back(iterator->second);
@@ -390,10 +451,12 @@ public:
         void deleteValues() {
                 typename std::map<K, T*>::const_iterator iterator;
 
-                rina::AccessGuard g(*lock_);
+                rina::ScopedLock g(*lock_);
                 for(iterator = map.begin();
                                 iterator != map.end(); ++iterator){
-                        delete iterator->second;
+                		if (iterator->second) {
+                				delete iterator->second;
+                		}
                 }
         }
 

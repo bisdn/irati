@@ -32,32 +32,53 @@ namespace rinad {
 
 class IPCProcessImpl: public IPCProcess, public EventLoopData {
 public:
-	IPCProcessImpl(const rina::ApplicationProcessNamingInformation& name,
-			unsigned short id, unsigned int ipc_manager_port,
-			std::string log_level, std::string log_file);
-	~IPCProcessImpl();
-	unsigned short get_id();
-	const std::list<rina::Neighbor*> get_neighbors() const;
-	const IPCProcessOperationalState& get_operational_state() const;
-	void set_operational_state(const IPCProcessOperationalState& operational_state);
-	const rina::DIFInformation& get_dif_information() const;
-	void set_dif_information(const rina::DIFInformation& dif_information);
-	unsigned int get_address() const;
-	void set_address(unsigned int address);
-	unsigned int getAdressByname(const rina::ApplicationProcessNamingInformation& name);
-	void processAssignToDIFRequestEvent(const rina::AssignToDIFRequestEvent& event);
-	void processAssignToDIFResponseEvent(const rina::AssignToDIFResponseEvent& event);
-	void requestPDUFTEDump();
-	void logPDUFTE(const rina::DumpFTResponseEvent& event);
+        IPCProcessImpl(const rina::ApplicationProcessNamingInformation& name,
+                        unsigned short id, unsigned int ipc_manager_port,
+                        std::string log_level, std::string log_file);
+        ~IPCProcessImpl();
+        unsigned short get_id();
+        const std::list<rina::Neighbor*> get_neighbors() const;
+        const IPCProcessOperationalState& get_operational_state() const;
+        void set_operational_state(const IPCProcessOperationalState& operational_state);
+        const rina::DIFInformation& get_dif_information() const;
+        void set_dif_information(const rina::DIFInformation& dif_information);
+        unsigned int get_address() const;
+        void set_address(unsigned int address);
+        unsigned int getAdressByname(const rina::ApplicationProcessNamingInformation& name);
+        void processAssignToDIFRequestEvent(const rina::AssignToDIFRequestEvent& event);
+        void processAssignToDIFResponseEvent(const rina::AssignToDIFResponseEvent& event);
+        void requestPDUFTEDump();
+        void logPDUFTE(const rina::DumpFTResponseEvent& event);
+
+	// Policy Management
+        int dispatchSelectPolicySet(const std::string& path,
+                                    const std::string& name,
+                                    bool& got_in_userspace);
+        void processSetPolicySetParamRequestEvent(
+                const rina::SetPolicySetParamRequestEvent& event);
+        void processSetPolicySetParamResponseEvent(
+                const rina::SetPolicySetParamResponseEvent& event);
+        void processSelectPolicySetRequestEvent(
+                const rina::SelectPolicySetRequestEvent& event);
+        void processSelectPolicySetResponseEvent(
+                const rina::SelectPolicySetResponseEvent& event);
+        void processPluginLoadRequestEvent(
+                const rina::PluginLoadRequestEvent& event);
+        void processFwdCDAPMsgEvent(
+                const rina::FwdCDAPMsgEvent& event);
 
 private:
-	void init_cdap_session_manager();
-	void init_encoder();
+        void init_cdap_session_manager();
+		void init_encoder();
 
-	IPCProcessOperationalState state;
-	std::map<unsigned int, rina::AssignToDIFRequestEvent> pending_events_;
-	rina::Lockable * lock_;
-	rina::DIFInformation dif_information_;
+        IPCProcessOperationalState state;
+		std::map<unsigned int, rina::AssignToDIFRequestEvent> pending_events_;
+        std::map<unsigned int, rina::SetPolicySetParamRequestEvent>
+                pending_set_policy_set_param_events;
+        std::map<unsigned int, rina::SelectPolicySetRequestEvent>
+                pending_select_policy_set_events;
+        rina::Lockable * lock_;
+		rina::DIFInformation dif_information_;
 };
 
 void register_handlers_all(EventLoop& loop);

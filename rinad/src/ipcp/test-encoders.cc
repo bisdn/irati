@@ -23,15 +23,16 @@
 #include <list>
 #include <iostream>
 
-#define RINA_PREFIX "encoders-tests"
+#define IPCP_MODULE "encoders-tests"
 
-#include <librina/logs.h>
+#include "ipcp-logging.h"
 
 #include <librina/configuration.h>
 #include "common/encoder.h"
 #include "ipcp/enrollment-task.h"
 #include "ipcp/flow-allocator.h"
-#include "ipcp/pduft-generator.h"
+
+int ipcp_id = 1;
 
 bool test_flow (rinad::Encoder * encoder) {
 	rinad::Flow flow_to_encode;
@@ -52,6 +53,8 @@ bool test_flow (rinad::Encoder * encoder) {
 	connection_policies_to_encode.set_seq_num_rollover_threshold(1234);
 	connection_policies_to_encode.set_initial_a_timer(14561);
 	connection_policies_to_encode.set_initial_seq_num_policy(rina::PolicyConfig("policy1", "23"));
+	connection_policies_to_encode.set_dtp_policy_set(rina::PolicyConfig("policy2", "26"));
+	dtcp_config_to_encode.set_dtcp_policy_set(rina::PolicyConfig("policy3", "27"));
 	dtcp_config_to_encode.set_rtx_control(true);
 	rtx_config.set_data_rxmsn_max(25423);
 	rtx_config.set_initial_rtx_time(100);
@@ -100,12 +103,16 @@ bool test_flow (rinad::Encoder * encoder) {
 		return false;
 	if ( connection_policies_to_encode.get_initial_seq_num_policy() != connection_policies_decoded.get_initial_seq_num_policy())
 		return false;
+	if ( connection_policies_to_encode.get_dtp_policy_set() != connection_policies_decoded.get_dtp_policy_set())
+		return false;
 
 	if ( connection_policies_to_encode.is_dtcp_present() != connection_policies_decoded.is_dtcp_present())
 		return false;
 	else {
 
 		rina::DTCPConfig dtcp_config_decoded = connection_policies_decoded.get_dtcp_configuration();
+	        if (dtcp_config_to_encode.get_dtcp_policy_set() != dtcp_config_decoded.get_dtcp_policy_set())
+		       return false;
 		if(dtcp_config_to_encode.is_rtx_control() != dtcp_config_decoded.is_rtx_control())
 			return false;
 		if(dtcp_config_to_encode.get_rtx_control_config().get_data_rxmsn_max() != dtcp_config_decoded.get_rtx_control_config().get_data_rxmsn_max())
@@ -153,7 +160,7 @@ bool test_flow (rinad::Encoder * encoder) {
 		}
 	}
 
-	LOG_INFO("Flow Encoder tested successfully");
+	LOG_IPCP_INFO("Flow Encoder tested successfully");
 
 	delete pflow_decoded;
 
@@ -184,7 +191,7 @@ bool test_data_transfer_constants(rinad::Encoder * encoder) {
 	}
 
 	if (dtc.cep_id_length_ != recovered_obj->cep_id_length_) {
-		LOG_DBG("Aqui");
+		LOG_IPCP_DBG("Aqui");
 		return false;
 	}
 
@@ -218,7 +225,7 @@ bool test_data_transfer_constants(rinad::Encoder * encoder) {
 
 	delete recovered_obj;
 
-	LOG_INFO("Data Transfer Constants Encoder tested successfully");
+	LOG_IPCP_INFO("Data Transfer Constants Encoder tested successfully");
 
 	return true;
 }
@@ -270,7 +277,7 @@ bool test_directory_forwarding_table_entry(rinad::Encoder * encoder) {
 
 	delete recovered_obj;
 
-	LOG_INFO("Directory Forwarding Table Entry Encoder tested successfully");
+	LOG_IPCP_INFO("Directory Forwarding Table Entry Encoder tested successfully");
 	return true;
 }
 
@@ -308,7 +315,7 @@ bool test_directory_forwarding_table_entry_list(rinad::Encoder * encoder) {
 
 	delete recovered_obj;
 
-	LOG_INFO("Directory Forwarding Table Entry List Encoder tested successfully");
+	LOG_IPCP_INFO("Directory Forwarding Table Entry List Encoder tested successfully");
 	return true;
 }
 
@@ -342,7 +349,7 @@ bool test_enrollment_information_request(rinad::Encoder * encoder) {
 
 	delete recovered_obj;
 
-	LOG_INFO("Enrollment Information Request Encoder tested successfully");
+	LOG_IPCP_INFO("Enrollment Information Request Encoder tested successfully");
 	return true;
 }
 
@@ -436,7 +443,7 @@ bool test_qos_cube(rinad::Encoder * encoder) {
 
 	delete recovered_obj;
 
-	LOG_INFO("QoS Cube Encoder tested successfully");
+	LOG_IPCP_INFO("QoS Cube Encoder tested successfully");
 	return true;
 }
 
@@ -462,7 +469,7 @@ bool test_qos_cube_list(rinad::Encoder * encoder) {
 
 	delete recovered_obj;
 
-	LOG_INFO("QoS Cube List Encoder tested successfully");
+	LOG_IPCP_INFO("QoS Cube List Encoder tested successfully");
 	return true;
 }
 
@@ -496,7 +503,7 @@ bool test_whatevercast_name(rinad::Encoder * encoder) {
 
 	delete recovered_obj;
 
-	LOG_INFO("Whatevercast Name Encoder tested successfully");
+	LOG_IPCP_INFO("Whatevercast Name Encoder tested successfully");
 	return true;
 }
 
@@ -522,7 +529,7 @@ bool test_whatevercast_name_list(rinad::Encoder * encoder) {
 
 	delete recovered_obj;
 
-	LOG_INFO("Whatevercast Name List Encoder tested successfully");
+	LOG_IPCP_INFO("Whatevercast Name List Encoder tested successfully");
 	return true;
 }
 
@@ -537,7 +544,7 @@ bool test_neighbor(rinad::Encoder * encoder) {
 	nei.supporting_difs_.push_back(rina::ApplicationProcessNamingInformation("Castefa.i2CAT", "1"));
 
 	rina::CDAPMessage cdapMessage = rina::CDAPMessage();
-	cdapMessage.obj_class_ = rinad::EncoderConstants::NEIGHBOR_RIB_OBJECT_CLASS;
+	cdapMessage.obj_class_ = rina::NeighborSetRIBObject::NEIGHBOR_RIB_OBJECT_CLASS;
 
 	encoder->encode(&nei, &cdapMessage);
 
@@ -561,7 +568,7 @@ bool test_neighbor(rinad::Encoder * encoder) {
 
 	delete recovered_obj;
 
-	LOG_INFO("Neighbor Encoder tested successfully");
+	LOG_IPCP_INFO("Neighbor Encoder tested successfully");
 	return true;
 }
 
@@ -575,7 +582,7 @@ bool test_neighbor_list(rinad::Encoder * encoder) {
 	nei_list.push_back(&nei2);
 
 	rina::CDAPMessage cdapMessage = rina::CDAPMessage();
-	cdapMessage.obj_class_ = rinad::EncoderConstants::NEIGHBOR_SET_RIB_OBJECT_CLASS;
+	cdapMessage.obj_class_ = rina::NeighborSetRIBObject::NEIGHBOR_SET_RIB_OBJECT_CLASS;
 
 	encoder->encode(&nei_list, &cdapMessage);
 
@@ -587,77 +594,7 @@ bool test_neighbor_list(rinad::Encoder * encoder) {
 
 	delete recovered_obj;
 
-	LOG_INFO("Neighbor List Encoder tested successfully");
-	return true;
-}
-
-bool test_flow_state_object(rinad::Encoder * encoder) {
-	rinad::FlowStateObject fso = rinad::FlowStateObject(23, 1, 34, 2, true, 123, 434);
-	rinad::FlowStateObject * recovered_obj = 0;
-
-	rina::CDAPMessage cdapMessage = rina::CDAPMessage();
-	cdapMessage.obj_class_ = rinad::EncoderConstants::FLOW_STATE_OBJECT_RIB_OBJECT_CLASS;
-
-	encoder->encode(&fso, &cdapMessage);
-
-	recovered_obj = (rinad::FlowStateObject *) encoder->decode(&cdapMessage);
-
-	if (fso.address_ != recovered_obj->address_) {
-		return false;
-	}
-
-	if (fso.age_ != recovered_obj->age_) {
-		return false;
-	}
-
-	if (fso.neighbor_address_ != recovered_obj->neighbor_address_) {
-		return false;
-	}
-
-	if (fso.neighbor_port_id_ != recovered_obj->neighbor_port_id_) {
-		return false;
-	}
-
-	if (fso.port_id_ != recovered_obj->port_id_) {
-		return false;
-	}
-
-	if (fso.sequence_number_ != recovered_obj->sequence_number_) {
-		return false;
-	}
-
-	if (fso.up_ != recovered_obj->up_) {
-		return false;
-	}
-	delete recovered_obj;
-
-	LOG_INFO("Flow State Object Encoder tested successfully");
-	return true;
-}
-
-bool test_flow_state_object_list(rinad::Encoder * encoder) {
-	std::list<rinad::FlowStateObject *> fso_list;
-	rinad::FlowStateObject fso1 = rinad::FlowStateObject(23, 1, 34, 2, true, 123, 434);
-	rinad::FlowStateObject fso2 = rinad::FlowStateObject(34, 2, 23, 1, true, 223, 434);
-	std::list<rinad::FlowStateObject*> * recovered_obj = 0;
-
-	fso_list.push_back(&fso1);
-	fso_list.push_back(&fso2);
-
-	rina::CDAPMessage cdapMessage = rina::CDAPMessage();
-	cdapMessage.obj_class_ = rinad::EncoderConstants::FLOW_STATE_OBJECT_GROUP_RIB_OBJECT_CLASS;
-
-	encoder->encode(&fso_list, &cdapMessage);
-
-	recovered_obj = (std::list<rinad::FlowStateObject*> *) encoder->decode(&cdapMessage);
-
-	if (fso_list.size() != recovered_obj->size()) {
-		return false;
-	}
-
-	delete recovered_obj;
-
-	LOG_INFO("Flow State Object List Encoder tested successfully");
+	LOG_IPCP_INFO("Neighbor List Encoder tested successfully");
 	return true;
 }
 
@@ -679,7 +616,7 @@ bool test_watchdog(rinad::Encoder * encoder) {
 
 	delete recovered_obj;
 
-	LOG_INFO("Watchdog Encoder tested successfully");
+	LOG_IPCP_INFO("Watchdog Encoder tested successfully");
 	return true;
 }
 
@@ -698,13 +635,9 @@ int main()
 			new rinad::EnrollmentInformationRequestEncoder());
 	encoder.addEncoder(rinad::EncoderConstants::FLOW_RIB_OBJECT_CLASS,
 			new rinad::FlowEncoder());
-	encoder.addEncoder(rinad::EncoderConstants::FLOW_STATE_OBJECT_GROUP_RIB_OBJECT_CLASS,
-			new rinad::FlowStateObjectListEncoder());
-	encoder.addEncoder(rinad::EncoderConstants::FLOW_STATE_OBJECT_RIB_OBJECT_CLASS,
-			new rinad::FlowStateObjectEncoder());
-	encoder.addEncoder(rinad::EncoderConstants::NEIGHBOR_RIB_OBJECT_CLASS,
+	encoder.addEncoder(rina::NeighborSetRIBObject::NEIGHBOR_RIB_OBJECT_CLASS,
 			new rinad::NeighborEncoder());
-	encoder.addEncoder(rinad::EncoderConstants::NEIGHBOR_SET_RIB_OBJECT_CLASS,
+	encoder.addEncoder(rina::NeighborSetRIBObject::NEIGHBOR_SET_RIB_OBJECT_CLASS,
 			new rinad::NeighborListEncoder());
 	encoder.addEncoder(rinad::EncoderConstants::QOS_CUBE_RIB_OBJECT_CLASS,
 			new rinad::QoSCubeEncoder());
@@ -719,85 +652,73 @@ int main()
 
 	bool result = test_data_transfer_constants(&encoder);
 	if (!result) {
-		LOG_ERR("Problems testing Data Transfer Constants Encoder");
+		LOG_IPCP_ERR("Problems testing Data Transfer Constants Encoder");
 		return -1;
 	}
 
 	result = test_directory_forwarding_table_entry(&encoder);
 	if (!result) {
-		LOG_ERR("Problems testing Directory Forwarding Table Entry Encoder");
+		LOG_IPCP_ERR("Problems testing Directory Forwarding Table Entry Encoder");
 		return -1;
 	}
 
 	result = test_directory_forwarding_table_entry_list(&encoder);
 	if (!result) {
-		LOG_ERR("Problems testing Directory Forwarding Table Entry List Encoder");
+		LOG_IPCP_ERR("Problems testing Directory Forwarding Table Entry List Encoder");
 		return -1;
 	}
 
 	result = test_enrollment_information_request(&encoder);
 	if (!result) {
-		LOG_ERR("Problems testing Enrollment Information Request Encoder");
+		LOG_IPCP_ERR("Problems testing Enrollment Information Request Encoder");
 		return -1;
 	}
 
 	result = test_flow(&encoder);
 	if (!result) {
-		LOG_ERR("Problems testing Flow Encoder");
-		return -1;
-	}
-
-	result = test_flow_state_object(&encoder);
-	if (!result) {
-		LOG_ERR("Problems testing Flow State Object Encoder");
-		return -1;
-	}
-
-	result = test_flow_state_object_list(&encoder);
-	if (!result) {
-		LOG_ERR("Problems testing Flow State Object List Encoder");
+		LOG_IPCP_ERR("Problems testing Flow Encoder");
 		return -1;
 	}
 
 	result = test_neighbor(&encoder);
 	if (!result) {
-		LOG_ERR("Problems testing Neighbor Encoder");
+		LOG_IPCP_ERR("Problems testing Neighbor Encoder");
 		return -1;
 	}
 
 	result = test_neighbor_list(&encoder);
 	if (!result) {
-		LOG_ERR("Problems testing Neighbor List Encoder");
+		LOG_IPCP_ERR("Problems testing Neighbor List Encoder");
 		return -1;
 	}
 
 	result = test_qos_cube(&encoder);
 	if (!result) {
-		LOG_ERR("Problems testing QoS Cube Encoder");
+		LOG_IPCP_ERR("Problems testing QoS Cube Encoder");
 		return -1;
 	}
 
 	result = test_qos_cube_list(&encoder);
 	if (!result) {
-		LOG_ERR("Problems testing QoS Cube List Encoder");
+		LOG_IPCP_ERR("Problems testing QoS Cube List Encoder");
 		return -1;
 	}
 
 	result = test_whatevercast_name(&encoder);
 	if (!result) {
-		LOG_ERR("Problems testing Whatevercast Name Encoder");
+		LOG_IPCP_ERR("Problems testing Whatevercast Name Encoder");
 		return -1;
 	}
 
 	result = test_whatevercast_name_list(&encoder);
 	if (!result) {
-		LOG_ERR("Problems testing Whatevercast Name List Encoder");
+		LOG_IPCP_ERR("Problems testing Whatevercast Name List Encoder");
 		return -1;
 	}
 
 	result = test_watchdog(&encoder);
 	if (!result) {
-		LOG_ERR("Problems testing Watchdog Encoder");
+		LOG_IPCP_ERR("Problems testing Watchdog Encoder");
 		return -1;
 	}
 

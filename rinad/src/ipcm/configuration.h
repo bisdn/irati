@@ -23,12 +23,14 @@
 #define __IPCM_CONFIGURATION_H__
 
 #include <string>
-#include "ipcm.h"
 
+#include "rina-configuration.h"
 
 namespace rinad {
 
-bool parse_configuration(std::string file_loc, IPCManager *ipcm);
+bool parse_configuration(std::string& file_loc);
+DIFTemplate * parse_dif_template(const std::string& file_name,
+				 const std::string& template_name);
 
 }
 #endif  /* __IPCM_CONFIGURATION_H__ */

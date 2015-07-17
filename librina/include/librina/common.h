@@ -36,9 +36,13 @@
 #ifdef __cplusplus
 
 #include <string>
+#include <sstream>
 #include <vector>
 #include <list>
 #include <ctime>
+#include <cstdlib>
+#include <iomanip>
+#include <cstring>
 
 #include "librina/concurrency.h"
 #include "librina/exceptions.h"
@@ -52,6 +56,8 @@ static std::string NORMAL_IPC_PROCESS= "normal-ipc";
  * Returns the version number of librina
  */
 std::string getVersion();
+
+extern int string2int(const std::string& s, int& ret);
 
 /**
  * Contains application naming information
@@ -104,6 +110,9 @@ public:
 	std::string entityInstance;
 };
 
+ApplicationProcessNamingInformation
+decode_apnameinfo(const std::string &encodedString);
+
 /**
  * This class defines the characteristics of a flow
  */
@@ -155,6 +164,11 @@ public:
 	 */
 	unsigned int maxSDUsize;
 
+	/**
+	 * True if the flow is blocking, false otherwise
+	 */
+	bool blocking;
+
 	FlowSpecification();
 	bool operator==(const FlowSpecification &other) const;
 	bool operator!=(const FlowSpecification &other) const;
@@ -166,6 +180,13 @@ public:
  */
 class FlowInformation {
 public:
+	enum FlowState {
+		FLOW_ALLOCATION_REQUESTED,
+		FLOW_ALLOCATED,
+		FLOW_DEALLOCATION_REQUESTED,
+		FLOW_DEALLOCATED
+	};
+
 	/** The local application name */
 	ApplicationProcessNamingInformation localAppName;
 
@@ -180,6 +201,8 @@ public:
 
 	/** The name of the DIF where the flow has been allocated */
 	ApplicationProcessNamingInformation difName;
+
+	FlowState state;
 
 	bool operator==(const FlowInformation &other) const;
 	bool operator!=(const FlowInformation &other) const;
@@ -228,7 +251,6 @@ enum IPCEventType {
 	UPDATE_DIF_CONFIG_RESPONSE_EVENT,
 	ENROLL_TO_DIF_REQUEST_EVENT,
 	ENROLL_TO_DIF_RESPONSE_EVENT,
-	NEIGHBORS_MODIFIED_NOTIFICATION_EVENT,
 	IPC_PROCESS_DIF_REGISTRATION_NOTIFICATION,
 	IPC_PROCESS_QUERY_RIB,
 	GET_DIF_PROPERTIES,
@@ -246,6 +268,14 @@ enum IPCEventType {
 	IPC_PROCESS_CREATE_CONNECTION_RESULT,
 	IPC_PROCESS_DESTROY_CONNECTION_RESULT,
 	IPC_PROCESS_DUMP_FT_RESPONSE,
+        IPC_PROCESS_SET_POLICY_SET_PARAM,
+        IPC_PROCESS_SET_POLICY_SET_PARAM_RESPONSE,
+        IPC_PROCESS_SELECT_POLICY_SET,
+        IPC_PROCESS_SELECT_POLICY_SET_RESPONSE,
+        IPC_PROCESS_PLUGIN_LOAD,
+        IPC_PROCESS_PLUGIN_LOAD_RESPONSE,
+        IPC_PROCESS_ENABLE_ENCRYPTION_RESPONSE,
+	IPC_PROCESS_FWD_CDAP_MSG,
 	NO_EVENT
 };
 
@@ -392,6 +422,9 @@ public:
 
 	/** Optional DIF name where the application wants to register */
 	ApplicationProcessNamingInformation difName;
+
+	/** True if the flows allocated to this AE will be blocking, false otherwise*/
+	bool blocking;
 
 	ApplicationRegistrationInformation();
 	ApplicationRegistrationInformation(
@@ -590,13 +623,99 @@ public:
         SerializedObject(char* message, int size);
         ~SerializedObject();
         SerializedObject& operator=(const SerializedObject &other);
-        int get_size() const;
-        char* get_message() const;
+	bool empty() const { return message_ == 0; }
         int size_;
         char* message_;
 
 private:
         void initialize(const SerializedObject& other );
+};
+
+struct UcharArray {
+	UcharArray();
+	UcharArray(int arrayLength);
+	UcharArray(const SerializedObject * sobj);
+	~UcharArray();
+	UcharArray& operator=(const UcharArray &other);
+	bool operator==(const UcharArray &other) const;
+	bool operator!=(const UcharArray &other) const;
+	std::string toString();
+	SerializedObject * get_seralized_object();
+
+	unsigned char * data;
+	int length;
+};
+
+class ConsecutiveUnsignedIntegerGenerator {
+public:
+	ConsecutiveUnsignedIntegerGenerator();
+	unsigned int next();
+	unsigned int counter_;
+	Lockable lock_;
+};
+
+/// Represents an IPC Process with whom we're enrolled
+class Neighbor {
+
+public:
+        Neighbor();
+        bool operator==(const Neighbor &other) const;
+        bool operator!=(const Neighbor &other) const;
+#ifndef SWIG
+        const ApplicationProcessNamingInformation& get_name() const;
+        void set_name(const ApplicationProcessNamingInformation& name);
+        const ApplicationProcessNamingInformation&
+                get_supporting_dif_name() const;
+        void set_supporting_dif_name(
+                const ApplicationProcessNamingInformation& supporting_dif_name);
+        const std::list<ApplicationProcessNamingInformation>& get_supporting_difs();
+        void set_supporting_difs(
+                        const std::list<ApplicationProcessNamingInformation>& supporting_difs);
+        void add_supporting_dif(const ApplicationProcessNamingInformation& supporting_dif);
+        unsigned int get_address() const;
+        void set_address(unsigned int address);
+        unsigned int get_average_rtt_in_ms() const;
+        void set_average_rtt_in_ms(unsigned int average_rtt_in_ms);
+        bool is_enrolled() const;
+        void set_enrolled(bool enrolled);
+        int get_last_heard_from_time_in_ms() const;
+        void set_last_heard_from_time_in_ms(int last_heard_from_time_in_ms_);
+        int get_underlying_port_id() const;
+        void set_underlying_port_id(int underlying_port_id);
+        unsigned int get_number_of_enrollment_attempts() const;
+        void set_number_of_enrollment_attempts(
+                        unsigned int number_of_enrollment_attempts);
+#endif
+        const std::string toString();
+
+        /// The IPC Process name of the neighbor
+        ApplicationProcessNamingInformation name_;
+
+        /// The name of the supporting DIF used to exchange data
+        ApplicationProcessNamingInformation supporting_dif_name_;
+
+        /// The names of all the supporting DIFs of this neighbor
+        std::list<ApplicationProcessNamingInformation> supporting_difs_;
+
+        /// The address
+        unsigned int address_;
+
+        /// Tells if it is enrolled or not
+        bool enrolled_;
+
+        /// The average RTT in ms
+        unsigned int average_rtt_in_ms_;
+
+        /// The underlying portId used to communicate with this neighbor
+        int underlying_port_id_;
+
+        /// The last time a KeepAlive message was received from
+        /// that neighbor, in ms
+        int last_heard_from_time_in_ms_;
+
+        /// The number of times we have tried to re-enroll with the
+        /// neighbor after the connectivity has been lost
+        unsigned int number_of_enrollment_attempts_;
 };
 
 /**

@@ -31,6 +31,7 @@
 
 #include "librina/configuration.h"
 #include "librina/application.h"
+#include "librina/enrollment.h"
 #include "librina/ipc-daemons.h"
 
 namespace rina {
@@ -65,35 +66,6 @@ public:
                         unsigned int sequenceNumber);
 #ifndef SWIG
         const DIFConfiguration& getDIFConfiguration() const;
-#endif
-};
-
-/**
- * The IPC Manager requests the IPC Process to enroll to a DIF,
- * through neighbour neighbourName, which can be reached by allocating
- * a flow through the supportingDIFName
- */
-class EnrollToDIFRequestEvent: public IPCEvent {
-public:
-        /** The DIF to enroll to */
-        ApplicationProcessNamingInformation difName;
-
-        /** The N-1 DIF name to allocate a flow to the member */
-        ApplicationProcessNamingInformation supportingDIFName;
-
-        /** The neighbor to contact */
-        ApplicationProcessNamingInformation neighborName;
-
-        EnrollToDIFRequestEvent() {}
-        EnrollToDIFRequestEvent(
-                const ApplicationProcessNamingInformation& difName,
-                const ApplicationProcessNamingInformation& supportingDIFName,
-                const ApplicationProcessNamingInformation& neighbourName,
-                unsigned int sequenceNumber);
-#ifndef SWIG
-        const ApplicationProcessNamingInformation& getDifName() const;
-        const ApplicationProcessNamingInformation& getNeighborName() const;
-        const ApplicationProcessNamingInformation& getSupportingDifName() const;
 #endif
 };
 
@@ -159,6 +131,58 @@ public:
 	int getScope() const;
 	const std::string& getFilter() const;
 #endif
+};
+
+/**
+ * The IPC Manager accesses a policy-set-related parameter
+ * of an IPC process
+ */
+class SetPolicySetParamRequestEvent: public IPCEvent {
+public:
+        /** The path of the sybcomponent/policy-set to be addressed */
+	std::string path;
+
+	/** The name of the parameter being accessed */
+	std::string name;
+
+	/** The value to assign to the parameter */
+	std::string value;
+
+	SetPolicySetParamRequestEvent(const std::string& path,
+                        const std::string& name, const std::string& value,
+			unsigned int sequenceNumber);
+};
+
+/**
+ * The IPC Manager selects a policy-set for an IPC process component
+ */
+class SelectPolicySetRequestEvent: public IPCEvent {
+public:
+        /** The path of the sybcomponent to be addressed */
+	std::string path;
+
+	/** The name of the policy-set to select */
+	std::string name;
+
+	SelectPolicySetRequestEvent(const std::string& path,
+                                    const std::string& name,
+			            unsigned int sequenceNumber);
+};
+
+/**
+ * The IPC Manager wants to load or unload a plugin for
+ * an IPC process
+ */
+class PluginLoadRequestEvent: public IPCEvent {
+public:
+	/** The name of the plugin to be loaded or unloaded */
+	std::string name;
+
+	/** Specifies whether the plugin is to be loaded or unloaded */
+	bool load;
+
+	PluginLoadRequestEvent(const std::string& name, bool load,
+                               unsigned int sequenceNumber);
 };
 
 /**
@@ -442,6 +466,9 @@ public:
 	DIFInformation currentDIFInformation;
 
 	static const std::string error_allocate_flow;
+
+	Lockable lock;
+
 	ExtendedIPCManager();
 	~ExtendedIPCManager() throw();
 #ifndef SWIG
@@ -507,20 +534,9 @@ public:
 	 * @throws EnrollException if there are problems communicating with the
 	 * IPC Manager
 	 */
-	void enrollToDIFResponse(const EnrollToDIFRequestEvent& event,
+	void enrollToDIFResponse(const EnrollToDAFRequestEvent& event,
 	                int result, const std::list<Neighbor> & newNeighbors,
 	                const DIFInformation& difInformation);
-
-	/**
-	 * Inform the IPC Manager about new neighbors being added or existing
-	 * neighbors that have been removed
-	 * @param added true if the neighbors have been added, false if removed
-	 * @param neighbors
-	 * @throws EnrollException if there are problems communicating with the
-	 * IPC Manager
-	 */
-	void notifyNeighborsModified(bool added,
-	                const std::list<Neighbor> & neighbors);
 
 	/**
 	 * Reply to the IPC Manager, informing it about the result of a "register
@@ -615,7 +631,7 @@ public:
 	 * @throws FlowAllocationException If there are problems
 	 * confirming/denying the flow
 	 */
-	Flow * allocateFlowResponse(const FlowRequestEvent& flowRequestEvent,
+	FlowInformation allocateFlowResponse(const FlowRequestEvent& flowRequestEvent,
 			int result, bool notifySource);
 
 	/**
@@ -656,10 +672,12 @@ public:
 	 * associated to the port-id requested (0 if is an application)
 	 * @param appName The name of the application that requested
 	 * the flow (could be an IPC Process or a regular application)
+	 * @param blocking true if the flow is blocking, false otherwise
 	 * @return the port-id
 	 * @throws PortAllocationException if something goes wrong
 	 */
-	int allocatePortId(const ApplicationProcessNamingInformation& appName);
+	int allocatePortId(const ApplicationProcessNamingInformation& appName,
+			   bool blocking);
 
 	/**
 	 * Request the kernel to free a used port-id
@@ -667,6 +685,46 @@ public:
 	 * @throws PortAllocationException if something goes wrong
 	 */
 	void deallocatePortId(int portId);
+
+	/**
+	 * Reply to the IPC Manager, informing it about the result of a
+         * setPolicySetParam operation
+	 * @param event the event that trigered the operation
+	 * @param result the result of the operation (0 successful)
+	 * @throws SetPolicySetParamException
+	 */
+	void setPolicySetParamResponse(
+                const SetPolicySetParamRequestEvent& event, int result);
+
+	/**
+	 * Reply to the IPC Manager, informing it about the result of a
+         * selectPolicySet operation
+	 * @param event the event that trigered the operation
+	 * @param result the result of the operation (0 successful)
+	 * @throws SelectPolicySetException
+	 */
+	void selectPolicySetResponse(
+                const SelectPolicySetRequestEvent& event, int result);
+
+	/**
+	 * Reply to the IPC Manager, informing it about the result of a
+         * pluginLoad operation
+	 * @param event the event that trigered the operation
+	 * @param result the result of the operation (0 successful)
+	 * @throws PluginLoadException
+	 */
+	void pluginLoadResponse(const PluginLoadRequestEvent& event,
+                                int result);
+
+	/**
+	 * Forward to the IPC Manager a CDAP response message
+	 * @param event Seqnum of the event that triggered the operation
+	 * @param The serialized CDAP message to forward
+	 * @throws FwdCDAPMsgException
+	 */
+	void forwardCDAPResponse(unsigned sequenceNumber,
+				 const rina::SerializedObject& sermsg,
+				 int result);
 };
 
 /**
@@ -739,6 +797,32 @@ public:
         const std::string toString();
 };
 
+/// Models an entry of the routing table
+class RoutingTableEntry {
+public:
+	/** The destination address */
+	unsigned int address;
+
+	/** The qos-id */
+	unsigned int qosId;
+
+	/** The cost */
+	unsigned int cost;
+
+	/** The next hop addresses */
+	std::list<unsigned int> nextHopAddresses;
+
+	RoutingTableEntry();
+};
+
+struct PortIdAltlist {
+	std::list<unsigned int> alts;
+
+	PortIdAltlist();
+	PortIdAltlist(unsigned int pid);
+	void add_alt(unsigned int pid);
+};
+
 /**
  * Models an entry in the PDU Forwarding Table
  */
@@ -751,7 +835,7 @@ public:
         unsigned int qosId;
 
         /** The N-1 portid */
-        std::list<unsigned int> portIds;
+        std::list<PortIdAltlist> portIdAltlists;
 
         PDUForwardingTableEntry();
         bool operator==(const PDUForwardingTableEntry &other) const;
@@ -759,9 +843,8 @@ public:
 #ifndef SWIG
         unsigned int getAddress() const;
         void setAddress(unsigned int address);
-        const std::list<unsigned int> getPortIds() const;
-        void setPortIds(const std::list<unsigned int>& portIds);
-        void addPortId(unsigned int portId);
+        const std::list<PortIdAltlist> getPortIdAltlists() const;
+        void setPortIdAltlists(const std::list<PortIdAltlist>& portIds);
         unsigned int getQosId() const;
         void setQosId(unsigned int qosId);
 #endif
@@ -789,6 +872,17 @@ public:
 #endif
 };
 
+class EnableEncryptionResponseEvent: public IPCEvent {
+public:
+        EnableEncryptionResponseEvent(int res,
+                        int port_id, unsigned int sequenceNumber);
+
+        // The N-1 port-id where encryption was to be applied
+        int port_id;
+
+        // Result of the operation, 0 success
+        int result;
+};
 
 /**
  * FIXME: Quick hack to get multiple parameters back
@@ -900,6 +994,35 @@ public:
          * @throws PDUForwardingTabeException if something goes wrong
          */
         unsigned int dumptPDUFT();
+
+        /// Request the kernel to enable encryption, decryption or both on a certain port
+        unsigned int enableEncryption(const EncryptionProfile& profile);
+
+        /**
+         * Request the Kernel IPC Process to modify a policy-set-related
+         * parameter.
+         * @param path The identificator of the component/policy-set to
+         *             be addressed
+         * @param name The name of the parameter to be modified
+         * @param value The value to set the parameter to
+         * @return a handle to the response event
+         * @throws SetPolicySetParamException if something goes wrong
+         */
+        unsigned int setPolicySetParam(const std::string& path,
+                                       const std::string& name,
+                                       const std::string& value);
+
+        /**
+         * Request the Kernel IPC Process to select a policy-set
+         * for an IPC process component.
+         * @param path The identificator of the component to
+         *             be addressed
+         * @param name The name of the policy-set to be selected
+         * @return a handle to the response event
+         * @throws SelectPolicySetException if something goes wrong
+         */
+        unsigned int selectPolicySet(const std::string& path,
+                                     const std::string& name);
 
         /**
          * Requests the kernel to write a management SDU to the

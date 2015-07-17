@@ -4,6 +4,7 @@
  *    Bernat Gaston         <bernat.gaston@i2cat.net>
  *    Eduard Grasa          <eduard.grasa@i2cat.net>
  *    Francesco Salvestrini <f.salvestrini@nextworks.it>
+ *    Vincenzo Maffione <v.maffione@nextworks.it>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,11 +27,15 @@
 #ifdef __cplusplus
 
 #include <list>
+#include <vector>
+#include <string>
 
 #include <librina/ipc-process.h>
+#include <librina/internal-events.h>
+#include <librina/irm.h>
+#include <librina/security-manager.h>
 
 #include "common/encoder.h"
-#include "events.h"
 
 namespace rinad {
 
@@ -45,12 +50,14 @@ enum IPCProcessOperationalState {
 
 class IPCProcess;
 
-/// IPC process component interface
+/// IPC process component
 class IPCProcessComponent {
 public:
-	virtual ~IPCProcessComponent(){};
-	virtual void set_ipc_process(IPCProcess * ipc_process) = 0;
-	virtual void set_dif_configuration(const rina::DIFConfiguration& dif_configuration) = 0;
+        IPCProcessComponent() : ipcp(NULL) { };
+        virtual ~IPCProcessComponent() { };
+        virtual void set_dif_configuration(const rina::DIFConfiguration& dif_configuration) = 0;
+
+        IPCProcess * ipcp;
 };
 
 /// Interface
@@ -87,87 +94,52 @@ public:
   virtual std::list<char*>& getRawSdus(char delimitedSdus[]) = 0;
 };
 
-/// Contains the objects needed to request the Enrollment
-class EnrollmentRequest
-{
-public:
-	EnrollmentRequest(rina::Neighbor * neighbor);
-	EnrollmentRequest(rina::Neighbor * neighbor,
-                          const rina::EnrollToDIFRequestEvent & event);
-	rina::Neighbor * neighbor_;
-	rina::EnrollToDIFRequestEvent event_;
-	bool ipcm_initiated_;
-};
+class IEnrollmentStateMachine;
 
 /// Interface that must be implementing by classes that provide
 /// the behavior of an enrollment task
-class IEnrollmentTask : public IPCProcessComponent, public rina::IApplicationConnectionHandler {
+class IPCPEnrollmentTask : public IPCProcessComponent,
+			   public rina::IEnrollmentTask {
 public:
-	virtual ~IEnrollmentTask(){};
-	virtual const std::list<rina::Neighbor *> get_neighbors() const = 0;
-	virtual const std::list<std::string> get_enrolled_ipc_process_names() const = 0;
+	IPCPEnrollmentTask() : IEnrollmentTask() { };
+	virtual ~IPCPEnrollmentTask(){};
+	virtual IEnrollmentStateMachine * getEnrollmentStateMachine(int portId, bool remove) = 0;
+	virtual void deallocateFlow(int portId) = 0;
+	virtual void add_enrollment_state_machine(int portId, IEnrollmentStateMachine * stateMachine) = 0;
+};
 
-	/// A remote IPC process Connect request has been received.
-	/// @param invoke_id the id of the connect message
-	/// @param session_descriptor
-	virtual void connect(int invoke_id,
-			rina::CDAPSessionDescriptor * session_descriptor) = 0;
+/// Policy set of the IPCP enrollment task
+class IPCPEnrollmentTaskPS : public rina::IPolicySet {
+public:
+        virtual ~IPCPEnrollmentTaskPS() {};
+        virtual void connect_received(const rina::CDAPMessage& cdapMessage,
+        			      rina::CDAPSessionDescriptor * session_descriptor) = 0;
+        virtual void connect_response_received(int result,
+        				       const std::string& result_reason,
+        				       rina::CDAPSessionDescriptor * session_descriptor) = 0;
+        virtual void process_authentication_message(const rina::CDAPMessage& message,
+        					    rina::CDAPSessionDescriptor * session_descriptor) = 0;
+	virtual void authentication_completed(int port_id, bool success) = 0;
+        virtual void initiate_enrollment(const rina::NMinusOneFlowAllocatedEvent & event,
+        				 rina::EnrollmentRequest * request) = 0;
+        virtual void inform_ipcm_about_failure(IEnrollmentStateMachine * state_machine) = 0;
+        virtual void set_dif_configuration(const rina::DIFConfiguration& dif_configuration) = 0;
+};
 
-	/// A remote IPC process Connect response has been received.
-	/// @param result
-	/// @param result_reason
-	/// @param session_descriptor
-	virtual void connectResponse(int result, const std::string& result_reason,
-			rina::CDAPSessionDescriptor * session_descriptor) = 0;
+/// The object that contains all the information
+/// that is required to initiate an enrollment
+/// request (send as the objectvalue of a CDAP M_START
+/// message, as specified by the Enrollment spec)
+class EnrollmentInformationRequest {
+public:
+	EnrollmentInformationRequest() : address_(0),
+		allowed_to_start_early_(false) {};
 
-	/// A remote IPC process Release request has been received.
-	/// @param invoke_id the id of the release message
-	/// @param session_descriptor
-	virtual void release(int invoke_id,
-			rina::CDAPSessionDescriptor * session_descriptor) = 0;
-
-	/// A remote IPC process Release response has been received.
-	/// @param result
-	/// @param result_reason
-	/// @param session_descriptor
-	virtual void releaseResponse(int result, const std::string& result_reason,
-			rina::CDAPSessionDescriptor * session_descriptor) = 0;
-
-	/// Process a request to initiate enrollment with a new Neighbor, triggered by the IPC Manager
-	/// @param event
-	virtual void processEnrollmentRequestEvent(rina::EnrollToDIFRequestEvent * event) = 0;
-
-	/// Starts the enrollment program
-	/// @param cdapMessage
-	/// @param cdapSessionDescriptor
-	virtual void initiateEnrollment(EnrollmentRequest * request) = 0;
-
-	/// Called by the enrollment state machine when the enrollment request has been completed,
-	/// either successfully or unsuccessfully
-	/// @param candidate the IPC process we were trying to enroll to
-	/// @param enrollee true if this IPC process is the one that initiated the
-	/// enrollment sequence (i.e. it is the application process that wants to
-	/// join the DIF)
-	virtual void enrollmentCompleted(rina::Neighbor * neighbor,
-                                         bool enrollee) = 0;
-
-	/// Called by the enrollment state machine when the enrollment sequence fails
-	/// @param remotePeer
-	/// @param portId
-	/// @param enrollee
-	/// @param sendMessage
-	/// @param reason
-	virtual void enrollmentFailed(const rina::ApplicationProcessNamingInformation& remotePeerNamingInfo,
-                                      int portId,
-                                      const std::string& reason,
-                                      bool enrolle,
-                                      bool sendReleaseMessage) = 0;
-
-	/// Finds out if the ICP process is already enrolled to the IPC process identified by
-	/// the provided apNamingInfo
-	/// @param apNamingInfo
-	/// @return
-	virtual bool isEnrolledTo(const std::string& applicationProcessName) const = 0;
+	/// The address of the IPC Process that requests
+	///to join a DIF
+	unsigned int address_;
+	std::list<rina::ApplicationProcessNamingInformation> supporting_difs_;
+	bool allowed_to_start_early_;
 };
 
 /// Encapsulates all the information required to manage a Flow
@@ -182,6 +154,7 @@ public:
 	};
 
 	Flow();
+	Flow(const Flow& flow);
 	~Flow();
 	rina::Connection * getActiveConnection();
 	std::string toString();
@@ -235,11 +208,27 @@ public:
 	bool source;
 };
 
+class IFlowAllocatorInstance;
+
+class IFlowAllocatorPs : public rina::IPolicySet {
+// This class is used by the IPCP to access the plugin functionalities
+public:
+        virtual Flow *newFlowRequest(IPCProcess * ipc_process,
+                        const rina::FlowRequestEvent& flowRequestEvent) = 0;
+
+        virtual ~IFlowAllocatorPs() {}
+};
+
 /// Interface that must be implementing by classes that provide
 /// the behavior of a Flow Allocator task
-class IFlowAllocator : public IPCProcessComponent {
+class IFlowAllocator : public IPCProcessComponent, public rina::ApplicationEntity {
 public:
+	static const std::string FLOW_ALLOCATOR_AE_NAME;
+
+	IFlowAllocator() : rina::ApplicationEntity(FLOW_ALLOCATOR_AE_NAME) { };
 	virtual ~IFlowAllocator(){};
+
+	virtual IFlowAllocatorInstance * getFAI(int portId) = 0;
 
 	/// The Flow Allocator is invoked when an Allocate_Request.submit is received.  The source Flow
 	/// Allocator determines if the request is well formed.  If not well-formed, an Allocate_Response.deliver
@@ -276,16 +265,62 @@ public:
 	/// @param cdapMessage
 	/// @param underlyingPortId
 	virtual void createFlowRequestMessageReceived(Flow * flow, const std::string& object_name,
-			int invoke_id, int underlying_port_id) = 0;
+			int invoke_id) = 0;
 
 	/// Called by the flow allocator instance when it finishes to cleanup the state.
 	/// @param portId
 	virtual void removeFlowAllocatorInstance(int portId) = 0;
+
+        // Plugin support
+	virtual std::list<rina::QoSCube*> getQoSCubes() = 0;
+	virtual Flow * createFlow() = 0;
+	virtual void destroyFlow(Flow *) = 0;
+};
+
+class IRoutingPs : public rina::IPolicySet {
+	// This class is used by the IPCP to access the plugin functionalities
+public:
+	virtual ~IRoutingPs() {};
+	virtual void set_dif_configuration(const rina::DIFConfiguration& dif_configuration) = 0;
+};
+
+class IRoutingComponent : public IPCProcessComponent, public rina::ApplicationEntity {
+public:
+	static const std::string ROUTING_COMPONENT_AE_NAME;
+	IRoutingComponent() : rina::ApplicationEntity(ROUTING_COMPONENT_AE_NAME) { };
+	virtual ~IRoutingComponent(){};
+};
+
+class RoutingComponent: public IRoutingComponent {
+public:
+	RoutingComponent() : IRoutingComponent() { };
+	void set_application_process(rina::ApplicationProcess * ap);
+	void set_dif_configuration(const rina::DIFConfiguration& dif_configuration);
+        ~RoutingComponent() {};
 };
 
 /// Namespace Manager Interface
-class INamespaceManager : public IPCProcessComponent {
+class INamespaceManagerPs : public rina::IPolicySet {
+// This class is used by the IPCP to access the plugin functionalities
 public:
+	/// Decides if a given address is valid or not
+	/// @param address
+	///	@return true if valid, false otherwise
+	virtual bool isValidAddress(unsigned int address, const std::string& ipcp_name,
+			const std::string& ipcp_instance) = 0;
+
+	/// Return a valid address for the IPC process that
+	/// wants to join the DIF
+	virtual unsigned int getValidAddress(const std::string& ipcp_name,
+				const std::string& ipcp_instance) = 0;
+
+	virtual ~INamespaceManagerPs() {}
+};
+
+class INamespaceManager : public IPCProcessComponent, public rina::ApplicationEntity {
+public:
+	static const std::string NAMESPACE_MANAGER_AE_NAME;
+	INamespaceManager() : rina::ApplicationEntity(NAMESPACE_MANAGER_AE_NAME) { };
 	virtual ~INamespaceManager(){};
 
 	/// Returns the address of the IPC process where the application process is, or
@@ -324,93 +359,45 @@ public:
 	virtual void processApplicationUnregistrationRequestEvent(
 			const rina::ApplicationUnregistrationRequestEvent& event) = 0;
 
-	/// Decides if a given address is valid or not
-	/// @param address
-	///	@return true if valid, false otherwise
-	virtual bool isValidAddress(unsigned int address, const std::string& ipcp_name,
-			const std::string& ipcp_instance) = 0;
-
-	/// Return a valid address for the IPC process that
-	/// wants to join the DIF
-	virtual unsigned int getValidAddress(const std::string& ipcp_name,
-				const std::string& ipcp_instance) = 0;
-
 	virtual unsigned int getAdressByname(const rina::ApplicationProcessNamingInformation& name) = 0;
+
+	virtual rina::ApplicationRegistrationInformation
+		get_reg_app_info(const rina::ApplicationProcessNamingInformation name) = 0;
 };
 
 ///N-1 Flow Manager interface
-class INMinusOneFlowManager {
+class INMinusOneFlowManager : public rina::IPCResourceManager {
 public:
+	INMinusOneFlowManager() : rina::IPCResourceManager(true) { };
 	virtual ~INMinusOneFlowManager(){};
 
 	virtual void set_ipc_process(IPCProcess * ipc_process) = 0;
 
 	virtual void set_dif_configuration(const rina::DIFConfiguration& dif_configuration) = 0;
 
-	/// Allocate an N-1 Flow with the requested QoS to the destination
-	/// IPC Process
-	/// @param flowInformation contains the destination IPC Process and requested
-    /// QoS information
-	/// @return handle to the flow request
-	virtual unsigned int allocateNMinus1Flow(const rina::FlowInformation& flowInformation) = 0;
-
-	/// Process the result of an allocate request event
-	/// @param event
-	/// @throws IPCException
-	virtual void allocateRequestResult(const rina::AllocateFlowRequestResultEvent& event) = 0;
-
-	/// Process a flow allocation request
-	/// @param event
-	/// @throws IPCException if something goes wrong
-	virtual void flowAllocationRequested(const rina::FlowRequestEvent& event) = 0;
-
-	/// Deallocate the N-1 Flow identified by portId
-	/// @param portId
-	/// @throws IPCException if no N-1 Flow identified by portId exists
-	virtual void deallocateNMinus1Flow(int portId) = 0;
-
-	/// Process the response of a flow deallocation request
-	/// @throws IPCException
-	virtual void deallocateFlowResponse(const rina::DeallocateFlowResponseEvent& event) = 0;
-
-	/// A flow has been deallocated remotely, process
-	/// @param portId
-	virtual void flowDeallocatedRemotely(const rina::FlowDeallocatedEvent& event) = 0;
-
-	/// Return the N-1 Flow descriptor associated to the flow identified by portId
-	/// @param portId
-	/// @return the N-1 Flow information
-    /// @throws IPCException if no N-1 Flow identified by portId exists
-	virtual const rina::FlowInformation& getNMinus1FlowInformation(int portId) const = 0;
-
 	/// The IPC Process has been unregistered from or registered to an N-1 DIF
 	/// @param evet
 	/// @throws IPCException
 	virtual void processRegistrationNotification(const rina::IPCProcessDIFRegistrationEvent& event) = 0;
 
-	/// True if the DIF name is a supoprting DIF, false otherwise
-	/// @param difName
-	/// @return
-	virtual bool isSupportingDIF(const rina::ApplicationProcessNamingInformation& difName) = 0;
+	virtual std::list<int> getNMinusOneFlowsToNeighbour(unsigned int address) = 0;
 
-	virtual std::list<rina::FlowInformation> getAllNMinusOneFlowInformation() const = 0;
+	virtual int getManagementFlowToNeighbour(unsigned int address) = 0;
+
+	virtual unsigned int numberOfFlowsToNeighbour(const std::string& apn,
+			const std::string& api) = 0;
 };
 
-/// Interface PDU Forwarding Table Generator Policy
-class IPDUFTGeneratorPolicy {
+/// PDUFT Generator Policy Set Interface
+class IPDUFTGeneratorPs : public rina::IPolicySet {
+// This class is used by the IPCP to access the plugin functionalities
 public:
-	virtual ~IPDUFTGeneratorPolicy(){};
-	virtual void set_ipc_process(IPCProcess * ipc_process) = 0;
-	virtual void set_dif_configuration(const rina::DIFConfiguration& dif_configuration) = 0;
-};
+	/// The routing table has been updated; decide if
+	/// the PDU Forwarding Table has to be updated and do it
+	///	@return true if valid, false otherwise
+	virtual void routingTableUpdated(const std::list<rina::RoutingTableEntry*>& routing_table) = 0;
 
-/// Interface PDU Forwarding Table Generator
-class IPDUForwardingTableGenerator {
-public:
-	virtual ~IPDUForwardingTableGenerator(){};
-	virtual void set_ipc_process(IPCProcess * ipc_process) = 0;
-	virtual void set_dif_configuration(const rina::DIFConfiguration& dif_configuration) = 0;
-	virtual IPDUFTGeneratorPolicy * get_pdu_ft_generator_policy() const = 0;
+	virtual ~IPDUFTGeneratorPs() {}
 };
 
 /// Resource Allocator Interface
@@ -429,11 +416,18 @@ public:
 ///     Creation/Deletion of (N-1)-flows
 ///     Assignment of RMT Queues to (N-1)-flows
 ///     Forwarding Table Generator Output
-class IResourceAllocator: public IPCProcessComponent {
+class IResourceAllocator: public IPCProcessComponent, public rina::ApplicationEntity {
 public:
+	static const std::string RESOURCE_ALLOCATOR_AE_NAME;
+	static const std::string PDUFT_GEN_COMPONENT_NAME;
+
+	IResourceAllocator() : rina::ApplicationEntity(RESOURCE_ALLOCATOR_AE_NAME),
+			pduft_gen_ps(NULL){ };
 	virtual ~IResourceAllocator(){};
 	virtual INMinusOneFlowManager * get_n_minus_one_flow_manager() const = 0;
-	virtual IPDUForwardingTableGenerator * get_pdu_forwarding_table_generator() const = 0;
+	int set_pduft_gen_policy_set(const std::string& name);
+
+	IPDUFTGeneratorPs * pduft_gen_ps;
 };
 
 /// Security Management � A DIF requires three security functions:
@@ -448,15 +442,34 @@ public:
 /// Control is performed by the Flow Allocator. The particular security procedures used for
 /// these security functions are a matter of policy. SDU Protection provides confidentiality
 /// and integrity
-class ISecurityManager: public IPCProcessComponent {
+class ISecurityManagerPs : public rina::IPolicySet {
+// This class is used by the IPCP to access the plugin functionalities
 public:
-	virtual ~ISecurityManager(){};
-
 	/// Decide if an IPC Process is allowed to join a DIF
 	virtual bool isAllowedToJoinDIF(const rina::Neighbor& newMember) = 0;
 
 	/// Decide if a new flow to the IPC process should be accepted
 	virtual bool acceptFlow(const Flow& newFlow) = 0;
+
+        virtual ~ISecurityManagerPs() {}
+};
+
+class IPCPSecurityManager: public rina::ISecurityManager, public IPCProcessComponent {
+// Used by IPCP to access the functionalities of the security manager
+public:
+	IPCPSecurityManager(){ };
+	void set_application_process(rina::ApplicationProcess * ap);
+	void set_dif_configuration(const rina::DIFConfiguration& dif_configuration);
+	~IPCPSecurityManager() {};
+	rina::AuthSDUProtectionProfile get_auth_sdup_profile(const std::string& under_dif_name);
+        rina::IAuthPolicySet::AuthStatus enable_encryption(const rina::EncryptionProfile& profile,
+        						   rina::IAuthPolicySet * caller);
+        void process_enable_encryption_response(const rina::EnableEncryptionResponseEvent& event);
+
+private:
+	rina::SecurityManagerConfiguration config;
+	rina::Lockable lock;
+	std::map<unsigned int, rina::IAuthPolicySet *> pending_enable_encryption_requests;
 };
 
 class IPCPRIBDaemon;
@@ -476,37 +489,46 @@ public:
 };
 
 /// Interface that provides the RIB Daemon API
-class IPCPRIBDaemon : public rina::RIBDaemon, public IPCProcessComponent, public EventManager {
+class IPCPRIBDaemon : public rina::RIBDaemon, public IPCProcessComponent {
 public:
+	IPCPRIBDaemon() : wmpi(0) { };
 	virtual ~IPCPRIBDaemon(){};
+
+	rina::WireMessageProviderInterface *wmpi;
 
 	/// Process a Query RIB Request from the IPC Manager
 	/// @param event
 	virtual void processQueryRIBRequestEvent(const rina::QueryRIBRequestEvent& event) = 0;
+	virtual void generateCDAPResponse(int invoke_id,
+			rina::CDAPSessionDescriptor * cdapSessDescr,
+			rina::CDAPMessage::Opcode opcode,
+			const std::string& obj_class,
+			const std::string& obj_name,
+			rina::RIBObjectValue& robject_value) = 0;
 };
 
 /// IPC Process interface
-class IPCProcess {
+class IPCProcess : public rina::ApplicationProcess {
 public:
 	static const std::string MANAGEMENT_AE;
 	static const std::string DATA_TRANSFER_AE;
 	static const int DEFAULT_MAX_SDU_SIZE_IN_BYTES;
 
 	IDelimiter * delimiter_;
-	Encoder * encoder_;
+	rina::IMasterEncoder * encoder_;
 	rina::CDAPSessionManagerInterface* cdap_session_manager_;
-	IEnrollmentTask * enrollment_task_;
+	rina::InternalEventManager * internal_event_manager_;
+	IPCPEnrollmentTask * enrollment_task_;
 	IFlowAllocator * flow_allocator_;
 	INamespaceManager * namespace_manager_;
 	IResourceAllocator * resource_allocator_;
-	ISecurityManager * security_manager_;
+	IPCPSecurityManager * security_manager_;
+	IRoutingComponent * routing_component_;
 	IPCPRIBDaemon * rib_daemon_;
-	rina::ApplicationProcessNamingInformation name_;
 
-        IPCProcess();
+	IPCProcess(const std::string& name, const std::string& instance);
 	virtual ~IPCProcess(){};
 	virtual unsigned short get_id() = 0;
-	virtual unsigned int get_address() const = 0;
 	virtual void set_address(unsigned int address) = 0;
 	virtual const IPCProcessOperationalState& get_operational_state() const = 0;
 	virtual void set_operational_state(const IPCProcessOperationalState& operational_state) = 0;
@@ -559,6 +581,13 @@ public:
                                  const std::string& object_name,
                                  const void* object_value);
 	virtual void deleteObject(const void* objectValue);
+};
+
+class IPCMCDAPSessDesc : public rina::CDAPSessionDescriptor {
+public:
+	IPCMCDAPSessDesc(unsigned int seqnum) : rina::CDAPSessionDescriptor(),
+						 req_seqnum(seqnum) { }
+	unsigned int req_seqnum;
 };
 
 }

@@ -27,6 +27,8 @@
 #include "du.h"
 #include "connection.h"
 
+struct ipcp_instance;
+
 enum ipcp_config_type {
         IPCP_CONFIG_UINT   = 1,
         IPCP_CONFIG_STRING,
@@ -92,7 +94,57 @@ struct efcp_config {
         /* The data transfer constants */
         struct dt_cons * dt_cons;
 
+        /* Left here for phase 2 */
         struct policy * unknown_flow;
+};
+
+struct dup_config_entry {
+	// The N-1 dif_name this configuration applies to
+	string_t * 	n_1_dif_name;
+
+	// If NULL TTL is disabled,
+	// otherwise contains the TTL policy data
+	struct policy * ttl_policy;
+	u_int32_t  	initial_ttl_value;
+
+	// if NULL error_check is disabled,
+	// otherwise contains the error check policy
+	// data
+	struct policy * error_check_policy;
+
+	//Encryption-related fields
+	struct policy * encryption_policy;
+	bool 		enable_encryption;
+	bool		enable_decryption;
+	string_t * 	encryption_cipher;
+	string_t * 	message_digest;
+	string_t * 	compress_alg;
+};
+
+struct dup_config {
+	struct list_head          next;
+	struct dup_config_entry * entry;
+};
+
+/* Represents the configuration of the SDUProtection module */
+struct sdup_config {
+	struct dup_config_entry * default_dup_conf;
+	struct list_head	  specific_dup_confs;
+};
+
+/* Represents the configuration of the PFF */
+struct pff_config {
+	/* The PS name for the PDU Forwarding Function */
+	struct policy * policy_set;
+};
+
+/* Represents the configuration of the RMT */
+struct rmt_config {
+	/* The PS name for the RMT */
+	struct policy * policy_set;
+
+	/* The configuration of the PDU Forwarding Function subcomponent */
+	struct pff_config * pff_conf;
 };
 
 /* Represents a DIF configuration (policies, parameters, etc) */
@@ -103,8 +155,14 @@ struct dif_config {
         /* the config of the efcp */
         struct efcp_config * efcp_config;
 
+        /* the config of the rmt */
+        struct rmt_config * rmt_config;
+
         /* The address of the IPC Process*/
         address_t           address;
+
+        /* List of Data Unit Protection configuration entries */
+        struct sdup_config * sdup_config;
 };
 
 /* Represents the information about a DIF (name, type, configuration) */
@@ -124,18 +182,21 @@ struct ipcp_instance_data;
 
 struct ipcp_instance_ops {
         int  (* flow_allocate_request)(struct ipcp_instance_data * data,
+                                       struct ipcp_instance *      usr_ipcp,
                                        const struct name *         source,
                                        const struct name *         dest,
                                        const struct flow_spec *    flow_spec,
                                        port_id_t                   id);
         int  (* flow_allocate_response)(struct ipcp_instance_data * data,
+                                        struct ipcp_instance *      dest_usr_ipcp,
                                         port_id_t                   port_id,
                                         int                         result);
         int  (* flow_deallocate)(struct ipcp_instance_data * data,
                                  port_id_t                   id);
 
         int  (* application_register)(struct ipcp_instance_data *   data,
-                                      const struct name *           source);
+                                      const struct name *           source,
+                                      bool			    blocking);
         int  (* application_unregister)(struct ipcp_instance_data * data,
                                         const struct name *         source);
 
@@ -158,6 +219,7 @@ struct ipcp_instance_ops {
                                        struct conn_policies *      cp_params);
 
         int      (* connection_update)(struct ipcp_instance_data * data,
+                                       struct ipcp_instance *      user_ipcp,
                                        port_id_t                   port_id,
                                        cep_id_t                    src_id,
                                        cep_id_t                    dst_id);
@@ -167,6 +229,7 @@ struct ipcp_instance_ops {
 
         cep_id_t
         (* connection_create_arrived)(struct ipcp_instance_data * data,
+                                      struct ipcp_instance *      user_ipcp,
                                       port_id_t                   port_id,
                                       address_t                   source,
                                       address_t                   dest,
@@ -174,11 +237,20 @@ struct ipcp_instance_ops {
                                       cep_id_t                    dst_cep_id,
                                       struct conn_policies *      cp_params);
 
-        int      (* flow_binding_ipcp)(struct ipcp_instance_data * data,
-                                       port_id_t                   port_id);
-
-        int      (* flow_destroy)(struct ipcp_instance_data * data,
+        int      (* flow_prebind)(struct ipcp_instance_data * data,
+                                  struct ipcp_instance *      user_ipcp,
                                   port_id_t                   port_id);
+
+        int      (* flow_binding_ipcp)(struct ipcp_instance_data * user_data,
+                                       port_id_t                   port_id,
+                                       struct ipcp_instance *      n1_ipcp);
+
+        int      (* flow_unbinding_ipcp)(struct ipcp_instance_data * user_data,
+                                         port_id_t                   port_id);
+        int      (* flow_unbinding_user_ipcp)(struct ipcp_instance_data * user_data,
+                                              port_id_t                   port_id);
+	int	(* nm1_flow_state_change)(struct ipcp_instance_data *data,
+					  port_id_t port_id, bool up);
 
         int      (* sdu_enqueue)(struct ipcp_instance_data * data,
                                  port_id_t                   id,
@@ -199,24 +271,44 @@ struct ipcp_instance_ops {
                               port_id_t                   port_id,
                               struct sdu *                sdu);
 
-        int (* pft_add)(struct ipcp_instance_data * data,
-                        address_t                   address,
-                        qos_id_t                    qos_id,
-                        port_id_t *                 ports,
-                        size_t                      size);
+        int (* pff_add)(struct ipcp_instance_data * data,
+			struct mod_pff_entry	  * entry);
 
-        int (* pft_remove)(struct ipcp_instance_data * data,
-                           address_t                   address,
-                           qos_id_t                    qos_id,
-                           port_id_t *                 ports,
-                           size_t                      size);
+        int (* pff_remove)(struct ipcp_instance_data * data,
+			   struct mod_pff_entry      * entry);
 
-        int (* pft_dump)(struct ipcp_instance_data * data,
+        int (* pff_dump)(struct ipcp_instance_data * data,
                          struct list_head *          entries);
 
-        int (* pft_flush)(struct ipcp_instance_data * data);
+        int (* pff_flush)(struct ipcp_instance_data * data);
+
+        int (* query_rib)(struct ipcp_instance_data * data,
+                          struct list_head *          entries,
+                          const string_t *            object_class,
+                          const string_t *            object_name,
+                          uint64_t                    object_instance,
+                          uint32_t                    scope,
+                          const string_t *            filter);
 
         const struct name * (* ipcp_name)(struct ipcp_instance_data * data);
+        const struct name * (* dif_name)(struct ipcp_instance_data * data);
+
+        int (* set_policy_set_param)(struct ipcp_instance_data * data,
+                                     const string_t * path,
+                                     const string_t * param_name,
+                                     const string_t * param_value);
+        int (* select_policy_set)(struct ipcp_instance_data * data,
+                                  const string_t * path,
+                                  const string_t * ps_name);
+
+        int (* enable_encryption)(struct ipcp_instance_data * data,
+        			  bool 		   enable_encryption,
+        		          bool 		   enable_decryption,
+        		          struct buffer *  encrypt_key,
+        		          port_id_t 	   port_id);
+
+        int (* enable_write)(struct ipcp_instance_data * data, port_id_t id);
+        int (* disable_write)(struct ipcp_instance_data * data, port_id_t id);
 };
 
 /* FIXME: Should work on struct ipcp_instance, not on ipcp_instance_ops */

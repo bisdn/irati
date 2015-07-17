@@ -31,13 +31,17 @@
 struct pdu_ser;
 
 struct pdu_ser * pdu_ser_create_buffer_with(struct buffer * buffer);
+struct pdu_ser * pdu_ser_create_buffer_with_ni(struct buffer * buffer);
 int              pdu_ser_destroy(struct pdu_ser * pdu);
 
 bool             pdu_ser_is_ok(const struct pdu_ser * s);
 struct buffer *  pdu_ser_buffer(struct pdu_ser * pdu);
 int              pdu_ser_buffer_disown(struct pdu_ser * pdu);
 
-int              pdu_ser_head_grow(struct pdu_ser * pdu, size_t bytes);
-int              pdu_ser_head_shrink(struct pdu_ser * pdu, size_t bytes);
+int              pdu_ser_head_grow_gfp(gfp_t flags, struct pdu_ser * pdu, size_t bytes);
+int              pdu_ser_head_shrink_gfp(gfp_t flags, struct pdu_ser * pdu, size_t bytes);
+
+int              pdu_ser_tail_grow_gfp(struct pdu_ser * pdu, size_t bytes);
+int              pdu_ser_tail_shrink_gfp(struct pdu_ser * pdu, size_t bytes);
 
 #endif

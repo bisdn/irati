@@ -98,17 +98,17 @@ int main() {
 	                        <<result<<std::endl;
 
         //Allocate port-id
-	portId1 = syscallAllocatePortId(5, *ipcProcessName);
+	portId1 = syscallAllocatePortId(5, *ipcProcessName, false);
 	std::cout<<"Allocated port id: "<<portId1<<std::endl;
-	portId2 = syscallAllocatePortId(1, *ipcProcessName);
+	portId2 = syscallAllocatePortId(1, *ipcProcessName, false);
 	std::cout<<"Allocated port id: "<<portId2<<std::endl;
 
 	//Deallocate port-id
-	result = syscallDeallocatePortId(portId1);
+	result = syscallDeallocatePortId(1, portId1);
 	std::cout<<"Deallocate port id result: "<<result<<std::endl;
-	result = syscallDeallocatePortId(portId2);
+	result = syscallDeallocatePortId(1,portId2);
 	std::cout<<"Deallocate port id result: "<<result<<std::endl;
-	result = syscallDeallocatePortId(34);
+	result = syscallDeallocatePortId(1,34);
 	std::cout<<"Deallocate port id result: "<<result<<std::endl;
 
 	delete sdu;

@@ -1,0 +1,43 @@
+{
+    "localConfiguration": {
+        "installationPath": "/usr/local/irati/bin",
+        "libraryPath": "/usr/local/irati/lib",
+        "logPath": "/usr/local/irati/var/log",
+        "consolePort": 32766
+    },
+    "applicationToDIFMappings": [
+        {
+            "encodedAppName": "rina.apps.echotime.server-1--",
+            "difName": "n.DIF"
+        },
+        {
+            "encodedAppName": "rina.apps.echotime.client-1--",
+            "difName": "n.DIF"
+        }
+    ],
+    "ipcProcessesToCreate": [
+        {
+            "apName": "g.hv.2.IPCP",
+            "apInstance": "1",
+            "difName": "hv.2.DIF"
+        },
+        {
+            "apName": "g.n.2.IPCP",
+            "apInstance": "1",
+            "difName": "n.DIF",
+            "difsToRegisterAt": [
+                "hv.2.DIF"
+            ]
+        }
+    ],
+    "difConfigurations": [
+        {
+            "name": "hv.2.DIF",
+            "template": "shim-hv.dif"
+        },
+        {
+            "name": "n.DIF",
+            "template": "vm-to-vm.dif"
+        }
+    ]
+}

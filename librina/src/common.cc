@@ -20,10 +20,11 @@
 // MA  02110-1301  USA
 //
 
+#include <climits>
 #include <ostream>
 #include <sstream>
 
-#define RINA_PREFIX "common"
+#define RINA_PREFIX "librina.common"
 
 #include "librina/logs.h"
 #include "config.h"
@@ -34,6 +35,20 @@ namespace rina {
 
 std::string getVersion() {
 	return VERSION;
+}
+
+int string2int(const std::string& s, int& ret)
+{
+	char *dummy;
+	const char *cstr = s.c_str();
+
+	ret = strtoul(cstr, &dummy, 10);
+	if (!s.size() || *dummy != '\0') {
+		ret = ~0U;
+		return -1;
+	}
+
+	return 0;
 }
 
 /* CLASS APPLICATION PROCESS NAMING INFORMATION */
@@ -178,6 +193,32 @@ const std::string ApplicationProcessNamingInformation::toString() const{
         return ss.str();
 }
 
+ApplicationProcessNamingInformation
+decode_apnameinfo(const std::string &encodedString)
+{
+        ApplicationProcessNamingInformation ret;
+        std::stringstream ss(encodedString);
+        std::string elem;
+        std::vector<std::string> elems;
+
+        while (std::getline(ss, elem, '-')) {
+                elems.push_back(elem);
+        }
+
+        if (elems.size() < 3) {
+                return ret;
+        }
+
+        ret.processName = elems[0];
+        ret.processInstance = elems[1];
+        ret.entityName = elems[2];
+        if (elems.size() >= 4) {
+                ret.entityInstance = elems[3];
+        }
+
+        return ret;
+}
+
 /* CLASS FLOW SPECIFICATION */
 
 FlowSpecification::FlowSpecification() {
@@ -192,6 +233,7 @@ FlowSpecification::FlowSpecification() {
 	jitter = 0;
 	delay = 0;
 	maxSDUsize = 0;
+	blocking = true;
 }
 
 const std::string FlowSpecification::toString() {
@@ -205,6 +247,7 @@ const std::string FlowSpecification::toString() {
         ss<<"; Average SDU bandwidth (bytes/s): "<<averageSDUBandwidth<<std::endl;
         ss<<"Peak bandwidth duration (ms): "<<peakBandwidthDuration;
         ss<<"; Peak SDU bandwidth duration (ms): "<<peakSDUBandwidthDuration;
+        ss<<"; Blocking: " << blocking;
         return ss.str();
 }
 
@@ -277,7 +320,7 @@ const std::string FlowInformation::toString(){
         ss<<"Local app name: "<<localAppName.toString()<<std::endl;
         ss<<"Remote app name: "<<remoteAppName.toString()<<std::endl;
         ss<<"DIF name: "<<difName.processName;
-        ss<<"; Port-id: "<<portId<<std::endl;
+        ss<<"; Port-id: "<<portId<<"; State: "<<state<<std::endl;
         ss<<"Flow specification: "<<flowSpecification.toString();
 
         return ss.str();
@@ -363,62 +406,83 @@ const std::string IPCEvent::eventTypeToString(IPCEventType eventType) {
 	case ENROLL_TO_DIF_RESPONSE_EVENT:
 		result = "17_ENROLL_TO_DIF_RESONSE";
 		break;
-	case NEIGHBORS_MODIFIED_NOTIFICATION_EVENT:
-		result = "18_NEIGHBORS_MODIFIED_NOTIFICATION";
-		break;
 	case IPC_PROCESS_DIF_REGISTRATION_NOTIFICATION:
-		result = "19_DIF_REGISTRATION_NOTIFICATION";
+		result = "18_DIF_REGISTRATION_NOTIFICATION";
 		break;
 	case IPC_PROCESS_QUERY_RIB:
-		result = "20_QUERY_RIB";
+		result = "19_QUERY_RIB";
 		break;
 	case GET_DIF_PROPERTIES:
-		result = "21_GET_DIF_PROPERTIES";
+		result = "20_GET_DIF_PROPERTIES";
 		break;
 	case GET_DIF_PROPERTIES_RESPONSE_EVENT:
-		result = "22_GET_DIF_PROPERTIES_RESPONSE";
+		result = "21_GET_DIF_PROPERTIES_RESPONSE";
 		break;
 	case OS_PROCESS_FINALIZED:
-		result = "23_OS_PROCESS_FINALIZED";
+		result = "22_OS_PROCESS_FINALIZED";
 		break;
 	case IPCM_REGISTER_APP_RESPONSE_EVENT:
-		result = "24_IPCM_REGISTER_APP_RESPONSE";
+		result = "23_IPCM_REGISTER_APP_RESPONSE";
 		break;
 	case IPCM_UNREGISTER_APP_RESPONSE_EVENT:
-		result = "25_IPCM_UNREGISTER_APP_RESPONSE";
+		result = "24_IPCM_UNREGISTER_APP_RESPONSE";
 		break;
 	case IPCM_DEALLOCATE_FLOW_RESPONSE_EVENT:
-		result = "26_IPCM_DEALLOCATE_FLOW_RESPONSE";
+		result = "25_IPCM_DEALLOCATE_FLOW_RESPONSE";
 		break;
 	case IPCM_ALLOCATE_FLOW_REQUEST_RESULT:
-		result = "27_IPCM_ALLOCATE_FLOW_RESULT";
+		result = "26_IPCM_ALLOCATE_FLOW_RESULT";
 		break;
 	case QUERY_RIB_RESPONSE_EVENT:
-		result = "28_QUERY_RIB_RESPONSE";
+		result = "27_QUERY_RIB_RESPONSE";
 		break;
 	case IPC_PROCESS_DAEMON_INITIALIZED_EVENT:
-		result = "29_IPC_PROCESS_DAEMON_INITIALIZED";
+		result = "28_IPC_PROCESS_DAEMON_INITIALIZED";
 		break;
 	case TIMER_EXPIRED_EVENT:
-		result = "30_TIMER_EXPIRED";
+		result = "29_TIMER_EXPIRED";
 		break;
 	case IPC_PROCESS_CREATE_CONNECTION_RESPONSE:
-		result = "31_CREATE_EFCP_CONN_RESPONSE";
+		result = "30_CREATE_EFCP_CONN_RESPONSE";
 		break;
 	case IPC_PROCESS_UPDATE_CONNECTION_RESPONSE:
-		result = "32_UPDATE_EFCP_CONN_RESPONSE";
+		result = "31_UPDATE_EFCP_CONN_RESPONSE";
 		break;
 	case IPC_PROCESS_CREATE_CONNECTION_RESULT:
-		result = "33_CREATE_EFCP_CONN_RESULT";
+		result = "32_CREATE_EFCP_CONN_RESULT";
 		break;
 	case IPC_PROCESS_DESTROY_CONNECTION_RESULT:
-		result = "34_DESTROY_EFCP_CONN_RESULT";
+		result = "33_DESTROY_EFCP_CONN_RESULT";
 		break;
 	case IPC_PROCESS_DUMP_FT_RESPONSE:
-		result = "35_DUMP_FT_RESPONSE";
+		result = "34_DUMP_FT_RESPONSE";
+		break;
+        case IPC_PROCESS_SET_POLICY_SET_PARAM:
+                result = "35_SET_POLICY_SET_PARAM";
+                break;
+        case IPC_PROCESS_SET_POLICY_SET_PARAM_RESPONSE:
+                result = "36_SET_POLICY_SET_PARAM_RESPONSE";
+                break;
+        case IPC_PROCESS_SELECT_POLICY_SET:
+                result = "37_SELECT_POLICY_SET";
+                break;
+        case IPC_PROCESS_SELECT_POLICY_SET_RESPONSE:
+                result = "38_SELECT_POLICY_SET_RESPONSE";
+                break;
+        case IPC_PROCESS_PLUGIN_LOAD:
+                result = "39_PLUGIN_LOAD";
+                break;
+        case IPC_PROCESS_PLUGIN_LOAD_RESPONSE:
+                result = "40_PLUGIN_LOAD_RESPONSE";
+                break;
+        case IPC_PROCESS_ENABLE_ENCRYPTION_RESPONSE:
+                result = "41_ENABLE_ENCRYPTION_RESPONSE";
+                break;
+	case IPC_PROCESS_FWD_CDAP_MSG:
+		result = "42_IPC_PROCESS_FWD_CDAP_MSG";
 		break;
 	case NO_EVENT:
-		result = "36_NO_EVENT";
+		result = "42_NO_EVENT";
 		break;
 	default:
 		result = "Unknown event";
@@ -512,12 +576,14 @@ FlowDeallocatedEvent::FlowDeallocatedEvent(
 ApplicationRegistrationInformation::ApplicationRegistrationInformation(){
 	applicationRegistrationType = APPLICATION_REGISTRATION_ANY_DIF;
 	ipcProcessId = 0;
+	blocking = true;
 }
 
 ApplicationRegistrationInformation::ApplicationRegistrationInformation(
 		ApplicationRegistrationType applicationRegistrationType){
 	this->applicationRegistrationType = applicationRegistrationType;
 	ipcProcessId = 0;
+	blocking = true;
 }
 
 const std::string ApplicationRegistrationInformation::toString(){
@@ -526,6 +592,7 @@ const std::string ApplicationRegistrationInformation::toString(){
         ss<<"Application name: "<<appName.toString()<<std::endl;
         ss<<"DIF name: "<<difName.processName;
         ss<<"; IPC Process id: "<<ipcProcessId;
+        ss<<"; Blocking: "<<blocking;
 
         return ss.str();
 }
@@ -759,17 +826,225 @@ SerializedObject::SerializedObject(char* message, int size){
 }
 SerializedObject::~SerializedObject(){
         if (message_) {
-                delete message_;
+                delete[] message_;
                 message_ = 0;
         }
 }
 
-int SerializedObject::get_size() const {
-        return size_;
+//Class UCharArray
+UcharArray::UcharArray()
+{
+	data = 0;
+	length = 0;
 }
 
-char* SerializedObject::get_message() const {
-        return message_;
+UcharArray::UcharArray(int arrayLength)
+{
+	data = new unsigned char[arrayLength];
+	length = arrayLength;
+}
+
+UcharArray::UcharArray(const SerializedObject * sobj)
+{
+	data = new unsigned char[sobj->size_];
+	length = sobj->size_;
+	memcpy(data, sobj->message_, length);
+}
+
+UcharArray::~UcharArray()
+{
+	if (data) {
+		delete[] data;
+		data = 0;
+	}
+}
+
+UcharArray& UcharArray::operator=(const UcharArray &other)
+{
+	length = other.length;
+	data = new unsigned char[length];
+	memcpy(data, other.data, length);
+	return *this;
+}
+
+bool UcharArray::operator==(const UcharArray &other) const
+{
+	if (length != other.length) {
+		return false;
+	}
+
+	for (int i=0; i<length; i++) {
+		if (data[i] != other.data[i]) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool UcharArray::operator!=(const UcharArray &other) const
+{
+	return !(*this == other);
+}
+
+std::string UcharArray::toString()
+{
+	std::stringstream ss;
+	ss << std::hex;
+	for (int i = 0; i < length; i++) {
+		ss << std::setw(2) << std::setfill('0') << (int)data[i];
+	}
+	return ss.str();
+}
+
+SerializedObject * UcharArray::get_seralized_object()
+{
+	SerializedObject * result = new SerializedObject();
+	result->size_ = length;
+	result->message_ = new char[result->size_];
+	memcpy(result->message_, data, result->size_);
+
+	return result;
+}
+
+//Class ConsecutiveUnsignedIntegerGenerator
+ConsecutiveUnsignedIntegerGenerator::ConsecutiveUnsignedIntegerGenerator() {
+	counter_ = 0;
+}
+
+unsigned int ConsecutiveUnsignedIntegerGenerator::next(){
+	unsigned int result = 0;
+	lock_.lock();
+	if (counter_ == UINT_MAX) {
+		counter_ = 0;
+	}
+	counter_++;
+	result = counter_;
+	lock_.unlock();
+
+	return result;
+}
+
+/* CLASS NEIGHBOR */
+Neighbor::Neighbor() {
+	address_ = false;
+	average_rtt_in_ms_ = 0;
+	last_heard_from_time_in_ms_ = 0;
+	enrolled_ = false;
+	underlying_port_id_ = 0;
+	number_of_enrollment_attempts_ = 0;
+}
+
+bool Neighbor::operator==(const Neighbor &other) const{
+	return name_ == other.get_name();
+}
+
+bool Neighbor::operator!=(const Neighbor &other) const{
+	return !(*this == other);
+}
+
+const ApplicationProcessNamingInformation&
+Neighbor::get_name() const {
+	return name_;
+}
+
+void Neighbor::set_name(
+		const ApplicationProcessNamingInformation& name) {
+	name_ = name;
+}
+
+const ApplicationProcessNamingInformation&
+Neighbor::get_supporting_dif_name() const {
+	return supporting_dif_name_;
+}
+
+void Neighbor::set_supporting_dif_name(
+		const ApplicationProcessNamingInformation& supporting_dif_name) {
+	supporting_dif_name_ = supporting_dif_name;
+}
+
+const std::list<ApplicationProcessNamingInformation>&
+Neighbor::get_supporting_difs() {
+	return supporting_difs_;
+}
+
+void Neighbor::set_supporting_difs(
+		const std::list<ApplicationProcessNamingInformation>& supporting_difs) {
+	supporting_difs_ = supporting_difs;
+}
+
+void Neighbor::add_supporting_dif(
+		const ApplicationProcessNamingInformation& supporting_dif) {
+	supporting_difs_.push_back(supporting_dif);
+}
+
+unsigned int Neighbor::get_address() const {
+	return address_;
+}
+
+void Neighbor::set_address(unsigned int address) {
+	address_ = address;
+}
+
+unsigned int Neighbor::get_average_rtt_in_ms() const {
+	return average_rtt_in_ms_;
+}
+
+void Neighbor::set_average_rtt_in_ms(unsigned int average_rtt_in_ms) {
+	average_rtt_in_ms_ = average_rtt_in_ms;
+}
+
+bool Neighbor::is_enrolled() const {
+	return enrolled_;
+}
+
+void Neighbor::set_enrolled(bool enrolled){
+	enrolled_ = enrolled;
+}
+
+int Neighbor::get_last_heard_from_time_in_ms() const {
+	return last_heard_from_time_in_ms_;
+}
+
+void Neighbor::set_last_heard_from_time_in_ms(int last_heard_from_time_in_ms) {
+	last_heard_from_time_in_ms_ = last_heard_from_time_in_ms;
+}
+
+int Neighbor::get_underlying_port_id() const {
+	return underlying_port_id_;
+}
+
+void Neighbor::set_underlying_port_id(int underlying_port_id) {
+	underlying_port_id_ = underlying_port_id;
+}
+
+unsigned int Neighbor::get_number_of_enrollment_attempts() const {
+	return number_of_enrollment_attempts_;
+}
+
+void Neighbor::set_number_of_enrollment_attempts(
+		unsigned int number_of_enrollment_attempts) {
+	number_of_enrollment_attempts_ = number_of_enrollment_attempts;
+}
+
+const std::string Neighbor::toString(){
+	std::stringstream ss;
+
+	ss<<"Address: "<<address_;
+	ss<<"; Average RTT(ms): "<<average_rtt_in_ms_;
+	ss<<"; Is enrolled: "<<enrolled_<<std::endl;
+	ss<<"Name: "<<name_.toString()<<std::endl;
+	ss<<"Supporting DIF in common: "<<supporting_dif_name_.processName;
+	ss<<"; N-1 port-id: "<<underlying_port_id_<<std::endl;
+	ss<<"List of supporting DIFs: ";
+	for (std::list<ApplicationProcessNamingInformation>::iterator it = supporting_difs_.begin();
+			it != supporting_difs_.end(); it++)
+		ss<< it->processName << "; ";
+	ss<<std::endl;
+	ss<<"Last heard from time (ms): "<<last_heard_from_time_in_ms_;
+	ss<<"; Number of enrollment attempts: "<<number_of_enrollment_attempts_;
+
+	return ss.str();
 }
 
 /* INITIALIZATION OPERATIONS */
@@ -787,8 +1062,8 @@ void initialize(unsigned int localPort, const std::string& logLevel,
         }
 
 	setNetlinkPortId(localPort);
-	setLogLevel(logLevel);
-	if (setLogFile(pathToLogFile) != 0) {
+	setLogLevel(logLevel.c_str());
+	if (setLogFile(pathToLogFile.c_str()) != 0) {
 	        LOG_WARN("Error setting log file, using stdout only");
 	}
 	rinaManager->getNetlinkManager();
@@ -806,8 +1081,8 @@ void initialize(const std::string& logLevel,
                 throw InitializationException("Librina already initialized");
         }
 
-        setLogLevel(logLevel);
-        if (setLogFile(pathToLogFile) != 0) {
+        setLogLevel(logLevel.c_str());
+        if (setLogFile(pathToLogFile.c_str()) != 0) {
                 LOG_WARN("Error setting log file, using stdout only");
         }
 

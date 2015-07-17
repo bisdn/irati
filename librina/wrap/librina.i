@@ -56,6 +56,37 @@
         return $jnicall;
  }
 
+/**
+ * char * typemaps. 
+ * These are input typemaps for mapping a Java byte[] array to a C char array.
+ * Note that as a Java array is used and thus passeed by reference, the C
+ * routine can return data to Java via the parameter.
+ *
+ * Example usage wrapping:
+ *   void foo(char *array);
+ *  
+ * Java usage:
+ *   byte b[] = new byte[20];
+ *   modulename.foo(b);
+ */
+/*
+%typemap(jni)    char * "jbyteArray"
+%typemap(jtype)  char * "byte[]"
+%typemap(jstype) char * "byte[]"
+%typemap(in)     char * {
+        $1 = (char *) JCALL2(GetByteArrayElements, jenv, $input, 0); 
+}
+
+%typemap(argout) char * {
+        JCALL3(ReleaseByteArrayElements, jenv, $input, (jbyte *) $1, 0); 
+}
+
+%typemap(javain) char * "$javainput"
+
+%typemap(javaout) char * {
+        return $jnicall;
+ }
+*/
 /* Define the class Exception */
 %typemap(javabase) Exception "java.lang.Exception";
 %typemap(javacode) Exception %{
@@ -78,6 +109,18 @@
 }
 %typemap(throws, throws="eu.irati.librina.FlowNotAllocatedException") rina::FlowNotAllocatedException {
   jclass excep = jenv->FindClass("eu/irati/librina/FlowNotAllocatedException");
+  if (excep)
+    jenv->ThrowNew(excep, $1.what());
+  return $null;
+}
+%typemap(throws, throws="eu.irati.librina.UnknownFlowException") rina::UnknownFlowException {
+  jclass excep = jenv->FindClass("eu/irati/librina/UnknownFlowException");
+  if (excep)
+    jenv->ThrowNew(excep, $1.what());
+  return $null;
+}
+%typemap(throws, throws="eu.irati.librina.InvalidArgumentsException") rina::InvalidArgumentsException {
+  jclass excep = jenv->FindClass("eu/irati/librina/InvalidArgumentsException");
   if (excep)
     jenv->ThrowNew(excep, $1.what());
   return $null;
@@ -355,12 +398,17 @@ DOWNCAST_IPC_EVENT_CONSUMER(eventTimedWait);
 #include "librina/concurrency.h"
 #include "librina/common.h"
 #include "librina/application.h"
+#include "librina/cdap_rib_structures.h"
+#include "librina/cdap_v2.h"
 %}
 
 %rename(differs) rina::ApplicationProcessNamingInformation::operator!=(const ApplicationProcessNamingInformation &other) const;
 %rename(equals) rina::ApplicationProcessNamingInformation::operator==(const ApplicationProcessNamingInformation &other) const;
 %rename(assign) rina::ApplicationProcessNamingInformation::operator=(const ApplicationProcessNamingInformation &other);
 %rename(assign) rina::SerializedObject::operator=(const SerializedObject &other);
+%rename(assign) rina::UcharArray::operator=(const UcharArray &other);
+%rename(differs) rina::UcharArray::operator!=(const UcharArray &other) const;
+%rename(equals) rina::UcharArray::operator==(const UcharArray &other) const;
 %rename(isLessThanOrEquals) rina::ApplicationProcessNamingInformation::operator<=(const ApplicationProcessNamingInformation &other) const;   
 %rename(isLessThan) rina::ApplicationProcessNamingInformation::operator<(const ApplicationProcessNamingInformation &other) const;
 %rename(isMoreThanOrEquals) rina::ApplicationProcessNamingInformation::operator>=(const ApplicationProcessNamingInformation &other) const;   
@@ -375,12 +423,21 @@ DOWNCAST_IPC_EVENT_CONSUMER(eventTimedWait);
 %rename(differs) rina::Policy::operator!=(const Policy &other) const;
 %rename(equals) rina::FlowInformation::operator==(const FlowInformation &other) const;
 %rename(differs) rina::FlowInformation::operator!=(const FlowInformation &other) const;
+%rename(equals) rina::rib::RIBObjectData::operator==(const RIBObjectData &other) const;
+%rename(differs) rina::rib::RIBObjectData::operator!=(const RIBObjectData &other) const;
+
+%rename(equals) rina::Neighbor::operator==(const Neighbor &other) const;
+%rename(differs) rina::Neighbor::operator!=(const Neighbor &other) const;
+
+%ignore SerializedObject;
 
 %include "librina/exceptions.h"
 %include "librina/patterns.h"
 %include "librina/concurrency.h"
 %include "librina/common.h"
 %include "librina/application.h"
+%include "librina/cdap_rib_structures.h"
+%include "librina/cdap_v2.h"
 
 /* Macro for defining collection iterators */
 %define MAKE_COLLECTION_ITERABLE( ITERATORNAME, JTYPE, CPPCOLLECTION, CPPTYPE )
@@ -435,8 +492,7 @@ MAKE_COLLECTION_ITERABLE(FlowInformationListIterator, FlowInformation, std::list
 MAKE_COLLECTION_ITERABLE(UnsignedIntListIterator, Long, std::list, unsigned int);
 
 %template(DIFPropertiesVector) std::vector<rina::DIFProperties>;
-%template(FlowVector) std::vector<rina::Flow>;
-%template(FlowPointerVector) std::vector<rina::Flow *>;
+%template(FlowInformationVector) std::vector<rina::FlowInformation>;
 %template(ApplicationRegistrationVector) std::vector<rina::ApplicationRegistration *>;
 %template(ParameterList) std::list<rina::Parameter>;
 %template(ApplicationProcessNamingInformationList) std::list<rina::ApplicationProcessNamingInformation>;

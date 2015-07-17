@@ -25,6 +25,8 @@
 #ifdef __cplusplus
 
 #include <librina/ipc-process.h>
+#include <librina/internal-events.h>
+
 #include "common/concurrency.h"
 #include "ipcp/components.h"
 
@@ -64,13 +66,14 @@ private:
 	rina::ApplicationProcessNamingInformation ap_name_entry_;
 };
 
-class DirectoryForwardingTableEntrySetRIBObject: public BaseIPCPRIBObject, public EventListener {
+class DirectoryForwardingTableEntrySetRIBObject:
+		public BaseIPCPRIBObject, public rina::InternalEventListener {
 public:
 	DirectoryForwardingTableEntrySetRIBObject(IPCProcess * ipc_process);
 
 	/// Called when the connectivity to a neighbor has been lost. All the
 	/// applications registered from that neighbor have to be removed from the directory
-	void eventHappened(Event * event);
+	void eventHappened(rina::InternalEvent * event);
 
 	/// A routing update with new and/or updated entries has been received -or
 	/// during enrollment-. See what parts of the update we didn't now, and tell the
@@ -102,7 +105,7 @@ private:
 class NamespaceManager: public INamespaceManager {
 public:
 	NamespaceManager();
-	void set_ipc_process(IPCProcess * ipc_process);
+	void set_application_process(rina::ApplicationProcess * ap);
 	void set_dif_configuration(const rina::DIFConfiguration& dif_configuration);
 	unsigned int getDFTNextHop(const rina::ApplicationProcessNamingInformation& apNamingInfo);
 	void addDFTEntry(rina::DirectoryForwardingTableEntry * entry);
@@ -114,11 +117,9 @@ public:
 				const rina::ApplicationRegistrationRequestEvent& event);
 	void processApplicationUnregistrationRequestEvent(
 				const rina::ApplicationUnregistrationRequestEvent& event);
-	bool isValidAddress(unsigned int address, const std::string& ipcp_name,
-			const std::string& ipcp_instance);
-	unsigned int getValidAddress(const std::string& ipcp_name,
-					const std::string& ipcp_instance);
 	unsigned int getAdressByname(const rina::ApplicationProcessNamingInformation& name);
+	rina::ApplicationRegistrationInformation
+		get_reg_app_info(const rina::ApplicationProcessNamingInformation name);
 
 private:
 	/// The directory forwarding table
@@ -127,7 +128,6 @@ private:
 	/// Applications registered in this IPC Process
 	rina::ThreadSafeMapOfPointers<std::string, rina::ApplicationRegistrationInformation> registrations_;
 
-	IPCProcess * ipc_process_;
 	IPCPRIBDaemon * rib_daemon_;
 
 	void populateRIB();
@@ -135,12 +135,6 @@ private:
 			int result);
 	int replyToIPCManagerUnregister(const rina::ApplicationUnregistrationRequestEvent& event,
 			int result);
-	unsigned int getIPCProcessAddress(const std::string& process_name,
-			const std::string& process_instance,
-			const rina::AddressingConfiguration& address_conf);
-	unsigned int getAddressPrefix(const std::string& process_name,
-				const rina::AddressingConfiguration& address_conf);
-	bool isAddressInUse(unsigned int address, const std::string& ipcp_name);
 };
 
 }

@@ -34,7 +34,7 @@
 namespace rina {
 namespace cdap {
 
-// STRUCT CDAPMessage
+//STRUCT CDAPMessage
 CDAPMessage::CDAPMessage()
 {
 	abs_syntax_ = 0;

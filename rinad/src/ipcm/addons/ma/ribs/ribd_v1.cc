@@ -34,7 +34,7 @@ namespace rinad {
 namespace mad {
 namespace rib_v1 {
 
-const std::string IPCProcesses_name = "/computingSystemID=1/processingSystemID=1/kernelApplicationProcess/osApplicationProcess/ipcProcesses";
+const std::string IPCProcesses_name = "/kernelApplicationProcess/osApplicationProcess/ipcProcesses";
 // Create the schema
 void createSchema(void){
 	rina::cdap_rib::vers_info_t vers;
@@ -71,59 +71,59 @@ rina::rib::rib_handle_t createRIB(void){
 		ribd->addObjRIB(rib,"/computingSystemID=1", &tmp);
 
 		tmp = new rina::rib::RIBObj("ProcessingSystem");
-		ribd->addObjRIB(rib, "/computingSystemID=1/processingSystemID=1", &tmp);
+		ribd->addObjRIB(rib, "", &tmp);
 
 		tmp = new rina::rib::RIBObj("Software");
-		ribd->addObjRIB(rib, "/computingSystemID=1/processingSystemID=1/software", &tmp);
+		ribd->addObjRIB(rib, "/software", &tmp);
 
 		tmp = new rina::rib::RIBObj("Hardware");
-		ribd->addObjRIB(rib, "/computingSystemID=1/processingSystemID=1/hardware", &tmp);
+		ribd->addObjRIB(rib, "/hardware", &tmp);
 
 		tmp = new rina::rib::RIBObj("KernelApplicationProcess");
-		ribd->addObjRIB(rib, "/computingSystemID=1/processingSystemID=1/kernelApplicationProcess", &tmp);
+		ribd->addObjRIB(rib, "/kernelApplicationProcess", &tmp);
 
 		tmp = new rina::rib::RIBObj("OSApplicationProcess");
-		ribd->addObjRIB(rib, "/computingSystemID=1/processingSystemID=1/kernelApplicationProcess/osApplicationProcess", &tmp);
+		ribd->addObjRIB(rib, "/kernelApplicationProcess/osApplicationProcess", &tmp);
 
 		tmp = new rina::rib::RIBObj("IPCProcesses");
 		ribd->addObjRIB(rib, IPCProcesses_name, &tmp);
 
 		tmp = new rina::rib::RIBObj("ManagementAgents");
-		ribd->addObjRIB(rib, "/computingSystemID=1/processingSystemID=1/kernelApplicationProcess/osApplicationProcess/managementAgents", &tmp);
+		ribd->addObjRIB(rib, "/kernelApplicationProcess/osApplicationProcess/managementAgents", &tmp);
 
 		tmp = new rina::rib::RIBObj("ManagementAgent");
-		ribd->addObjRIB(rib, "/computingSystemID=1/processingSystemID=1/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1", &tmp);
+		ribd->addObjRIB(rib, "/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1", &tmp);
 
 		// IPCManagement branch
 		tmp = new rina::rib::RIBObj("IPCManagement");
-		ribd->addObjRIB(rib, "/computingSystemID=1/processingSystemID=1/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/ipcManagement", &tmp);
+		ribd->addObjRIB(rib, "/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/ipcManagement", &tmp);
 
 		tmp = new rina::rib::RIBObj("IPCResourceManager");
-		ribd->addObjRIB(rib, "/computingSystemID=1/processingSystemID=1/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/ipcManagement/ipcResourceManager", &tmp);
+		ribd->addObjRIB(rib, "/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/ipcManagement/ipcResourceManager", &tmp);
 
 		tmp = new rina::rib::RIBObj("UnderlayingFlows");
-		ribd->addObjRIB(rib, "/computingSystemID=1/processingSystemID=1/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/ipcManagement/ipcResourceManager/underlayingFlows", &tmp);
+		ribd->addObjRIB(rib, "/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/ipcManagement/ipcResourceManager/underlayingFlows", &tmp);
 
 		tmp = new rina::rib::RIBObj("UnderlayingDIFs");
-		ribd->addObjRIB(rib, "/computingSystemID=1/processingSystemID=1/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/ipcManagement/ipcResourceManager/underlayingDIFs", &tmp);
+		ribd->addObjRIB(rib, "/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/ipcManagement/ipcResourceManager/underlayingDIFs", &tmp);
 
 		tmp = new rina::rib::RIBObj("QueryDIFAllocator");
-		ribd->addObjRIB(rib, "/computingSystemID=1/processingSystemID=1/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/ipcManagement/ipcResourceManager/queryDIFAllocator", &tmp);
+		ribd->addObjRIB(rib, "/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/ipcManagement/ipcResourceManager/queryDIFAllocator", &tmp);
 
 		tmp = new rina::rib::RIBObj("UnderlayingRegistrations");
-		ribd->addObjRIB(rib, "/computingSystemID=1/processingSystemID=1/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/ipcManagement/ipcResourceManager/underlayingRegistrations", &tmp);
+		ribd->addObjRIB(rib, "/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/ipcManagement/ipcResourceManager/underlayingRegistrations", &tmp);
 
 		tmp = new rina::rib::RIBObj("SDUPRotection");
-		ribd->addObjRIB(rib, "/computingSystemID=1/processingSystemID=1/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/ipcManagement/sduProtection", &tmp);
+		ribd->addObjRIB(rib, "/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/ipcManagement/sduProtection", &tmp);
 		// RIBDaemon branch
 		tmp = new rina::rib::RIBObj("RIBDaemon");
-		ribd->addObjRIB(rib, "/computingSystemID=1/processingSystemID=1/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/ribDaemon", &tmp);
+		ribd->addObjRIB(rib, "/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/ribDaemon", &tmp);
 
 		tmp = new rina::rib::RIBObj("Discriminators");
-		ribd->addObjRIB(rib, "/computingSystemID=1/processingSystemID=1/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/ribDaemon/discriminators", &tmp);
+		ribd->addObjRIB(rib, "/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/ribDaemon/discriminators", &tmp);
 		// DIFManagement
 		tmp = new rina::rib::RIBObj("DIFManagement");
-		ribd->addObjRIB(rib, "/computingSystemID=1/processingSystemID=1/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/difManagement", &tmp);
+		ribd->addObjRIB(rib, "/kernelApplicationProcess/osApplicationProcess/managementAgents/managementAgentID=1/difManagement", &tmp);
 
 		//
 		//Add the IPCPs
@@ -158,11 +158,11 @@ void createIPCPObj(const rina::rib::rib_handle_t& rib, int ipcp_id){
 	rina::rib::RIBObj* tmp;
 
 	std::stringstream ss;
-	ss << "/computingSystemID=1/processingSystemID=1/kernelApplicationProcess/osApplicationProcess/ipcProcesses/ipcProcessID=";
+	ss << "/kernelApplicationProcess/osApplicationProcess/ipcProcesses/ipcProcessID=";
 	ss << ipcp_id;
 	try {
 		std::stringstream ss;
-		ss << "/computingSystemID=1/processingSystemID=1/kernelApplicationProcess/osApplicationProcess/ipcProcesses/";
+		ss << "/kernelApplicationProcess/osApplicationProcess/ipcProcesses/";
 		ss << "ipcProcessID=" << ipcp_id;
 		tmp = new IPCPObj(ipcp_id);
 		ribd->addObjRIB(rib, ss.str(), &tmp);
@@ -181,7 +181,7 @@ void destroyIPCPObj(const rina::rib::rib_handle_t& rib, int ipcp_id){
 	rina::rib::RIBDaemonProxy *const ribd = RIBFactory::getProxy();
 
 	std::stringstream ss;
-	ss << "/computingSystemID=1/processingSystemID=1/kernelApplicationProcess/osApplicationProcess/ipcProcesses/ipcProcessID=";
+	ss << "/kernelApplicationProcess/osApplicationProcess/ipcProcesses/ipcProcessID=";
 	ss << ipcp_id;
 	try {
 		int64_t inst_id = ribd->getObjInstId(rib, ss.str());

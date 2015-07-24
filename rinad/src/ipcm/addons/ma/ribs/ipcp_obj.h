@@ -26,7 +26,7 @@ class IPCPObj;
 /**
  * IPCP object
  */
-class IPCPObj : public rina::rib::RIBObj{
+class IPCPObj : public DelegationObj{
 
 public:
 	IPCPObj(int ipcp_id);
@@ -36,35 +36,66 @@ public:
 		return class_name;
 	};
 
-	//Read
-	void read(const rina::cdap_rib::con_handle_t &con,
+	///
+	/// Remote invocations, resulting from CDAP messages
+	///
+
+	// Create
+	void create(const cdap_rib::con_handle_t &con,
 				const std::string& fqn,
 				const std::string& class_,
-				const rina::cdap_rib::filt_info_t &filt,
+				const cdap_rib::filt_info_t &filt,
 				const int invoke_id,
-				rina::cdap_rib::SerializedObject &obj_reply,
-				rina::cdap_rib::res_info_t& res);
+				const cdap_rib::SerializedObject &obj_req,
+				cdap_rib::SerializedObject &obj_reply,
+				cdap_rib::res_info_t& res);
 
+	// Delete
+	bool delete_(const cdap_rib::con_handle_t &con,
+					const std::string& fqn,
+					const std::string& class_,
+					const cdap_rib::filt_info_t &filt,
+					const int invoke_id,
+					cdap_rib::res_info_t& res);
 
-	//Deletion
-	bool delete_(const rina::cdap_rib::con_handle_t &con,
+	// Read
+	void read(const cdap_rib::con_handle_t &con,
+					const std::string& fqn,
+					const std::string& class_,
+					const cdap_rib::filt_info_t &filt,
+					const int invoke_id,
+					cdap_rib::SerializedObject &obj_reply,
+					cdap_rib::res_info_t& res);
+
+	// Write
+	void write(const cdap_rib::con_handle_t &con,
 				const std::string& fqn,
 				const std::string& class_,
-				const rina::cdap_rib::filt_info_t &filt,
+				const cdap_rib::filt_info_t &filt,
 				const int invoke_id,
-				rina::cdap_rib::res_info_t& res);
+				const cdap_rib::SerializedObject &obj_req,
+				cdap_rib::SerializedObject &obj_reply,
+				cdap_rib::res_info_t& res);
 
-	//Create callback
-	static void create_cb(const rina::rib::rib_handle_t rib,
-			const rina::cdap_rib::con_handle_t &con,
-			const std::string& fqn,
-			const std::string& class_,
-			const rina::cdap_rib::filt_info_t &filt,
-			const int invoke_id,
-			const rina::cdap_rib::SerializedObject &obj_req,
-			rina::cdap_rib::SerializedObject &obj_reply,
-			rina::cdap_rib::res_info_t& res);
+	// Start
+	void start(const cdap_rib::con_handle_t &con,
+				const std::string& fqn,
+				const std::string& class_,
+				const cdap_rib::filt_info_t &filt,
+				const int invoke_id,
+				const cdap_rib::SerializedObject &obj_req,
+				cdap_rib::SerializedObject &obj_reply,
+				cdap_rib::res_info_t& res);
 
+	// Stop
+	void stop(const cdap_rib::con_handle_t &con,
+				const std::string& fqn,
+				const std::string& class_,
+				const cdap_rib::filt_info_t &filt,
+				const int invoke_id,
+				const cdap_rib::SerializedObject &obj_req,
+				cdap_rib::SerializedObject &obj_reply,
+				cdap_rib::res_info_t& res);
 
 	//Name of the class
 	const static std::string class_name;
@@ -76,6 +107,9 @@ protected:
 	static int createIPCP(rinad::mad_manager::structures::ipcp_config_t &object);
 	static bool assignToDIF(rinad::mad_manager::structures::ipcp_config_t &object, int ipcp_id);
 	static bool registerAtDIFs(rinad::mad_manager::structures::ipcp_config_t &object, int ipcp_id);
+
+	//Mapping internal invoke_id <-> external invoke_id
+	static std::map<int, int> invoke_id_mappings;
 
 private:
 	mad_manager::encoders::IPCPEncoder encoder;

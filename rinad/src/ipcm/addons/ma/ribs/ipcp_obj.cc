@@ -14,59 +14,79 @@ namespace rib_v1 {
 
 //Static class names
 const std::string IPCPObj::class_name = "IPCProcess";
+std::map<int, int> IPCPObj::invoke_id_mappings;
 
 //Class
 IPCPObj::IPCPObj(int ipcp_id) : RIBObj(class_name), processID_(ipcp_id){
 
 }
 
-void IPCPObj::read(const rina::cdap_rib::con_handle_t &con,
-				const std::string& fqn,
-				const std::string& class_,
-				const rina::cdap_rib::filt_info_t &filt,
-				const int invoke_id,
-				rina::cdap_rib::SerializedObject &obj_reply,
-				rina::cdap_rib::res_info_t& res){
+void IPCPObj::create(const cdap_rib::con_handle_t &con,
+			const std::string& fqn,
+			const std::string& class_,
+			const cdap_rib::filt_info_t &filt,
+			const int invoke_id,
+			const cdap_rib::SerializedObject &obj_req,
+			cdap_rib::SerializedObject &obj_reply,
+			cdap_rib::res_info_t& res){
 
-	(void) con;
-	(void) fqn;
-	(void) class_;
-	(void) filt;
-	(void) invoke_id;
-	res.code_ = rina::cdap_rib::CDAP_SUCCESS;
+	
 
-	mad_manager::structures::ipcp_t info;
-	info.process_id = processID_;
-	info.name = IPCManager->get_ipcp_name(processID_);
-	//TODO: Add missing stuff...
 
-	encoder.encode(info, obj_reply);
 }
 
-bool IPCPObj::delete_(const rina::cdap_rib::con_handle_t &con,
+bool IPCPObj::delete_(const cdap_rib::con_handle_t &con,
 				const std::string& fqn,
 				const std::string& class_,
-				const rina::cdap_rib::filt_info_t &filt,
+				const cdap_rib::filt_info_t &filt,
 				const int invoke_id,
-				rina::cdap_rib::res_info_t& res){
-	(void) con;
-	(void) fqn;
-	(void) class_;
-	(void) filt;
-	(void) invoke_id;
+				cdap_rib::res_info_t& res){
 
-	//Fill in the response
-	res.code_ = rina::cdap_rib::CDAP_SUCCESS;
-
-	//Call the IPCManager and return
-	if (IPCManager->destroy_ipcp(ManagementAgent::inst, processID_) != IPCM_SUCCESS) {
-		LOG_ERR("Unable to destroy IPCP with id %d", processID_);
-		res.code_ = rina::cdap_rib::CDAP_ERROR;
-		return false;
-	}
-
-	return true;
 }
+
+void IPCPObj::read(const cdap_rib::con_handle_t &con,
+				const std::string& fqn,
+				const std::string& class_,
+				const cdap_rib::filt_info_t &filt,
+				const int invoke_id,
+				cdap_rib::SerializedObject &obj_reply,
+				cdap_rib::res_info_t& res){
+
+}
+
+void IPCPObj::write(const cdap_rib::con_handle_t &con,
+			const std::string& fqn,
+			const std::string& class_,
+			const cdap_rib::filt_info_t &filt,
+			const int invoke_id,
+			const cdap_rib::SerializedObject &obj_req,
+			cdap_rib::SerializedObject &obj_reply,
+			cdap_rib::res_info_t& res){
+
+}
+
+void IPCPObj::start(const cdap_rib::con_handle_t &con,
+			const std::string& fqn,
+			const std::string& class_,
+			const cdap_rib::filt_info_t &filt,
+			const int invoke_id,
+			const cdap_rib::SerializedObject &obj_req,
+			cdap_rib::SerializedObject &obj_reply,
+			cdap_rib::res_info_t& res){
+
+}
+
+void IPCPObj::stop(const cdap_rib::con_handle_t &con,
+			const std::string& fqn,
+			const std::string& class_,
+			const cdap_rib::filt_info_t &filt,
+			const int invoke_id,
+			const cdap_rib::SerializedObject &obj_req,
+			cdap_rib::SerializedObject &obj_reply,
+			cdap_rib::res_info_t& res){
+
+}
+
 
 void IPCPObj::create_cb(const rina::rib::rib_handle_t rib,
 			const rina::cdap_rib::con_handle_t &con,

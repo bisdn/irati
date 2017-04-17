@@ -131,7 +131,6 @@ int m_Release_R(CDAPSessionManagerInterface &session_manager,
 	} catch (CDAPException &e) {
 		assert = 1;
 	}
-
 	delete sent_message;
 	sent_message = 0;
 	delete serialized_message;
